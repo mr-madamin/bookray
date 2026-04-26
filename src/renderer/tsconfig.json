@@ -1,0 +1,11 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "outDir": "../../dist/renderer",
+    "lib": ["ES2020", "DOM", "DOM.Iterable"]
+    // DOM available — but NOT Node.js APIs
+  },
+  "include": ["./**/*", "../shared/**/*"]
+}

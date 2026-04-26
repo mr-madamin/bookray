@@ -1,0 +1,11 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "CommonJS",
+    "outDir": "../../dist/main",
+    "lib": ["ES2020"]       
+    // NO dom — compiler will catch accidental DOM usage in main
+  },
+  "include": ["./**/*", "../shared/**/*"]
+}
