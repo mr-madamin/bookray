@@ -81,6 +81,7 @@ typings/
 
 # Production
 /dist
+/dist-electron
 
 # misc
 .DS_Store
