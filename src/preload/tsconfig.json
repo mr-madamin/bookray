@@ -3,18 +3,17 @@
     "target": "ES2022",
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "jsx": "react-jsx",
-    "lib": ["ES2022", "DOM", "DOM.Iterable"],
-    "types": ["vite/client"],
+    "lib": ["ES2022", "DOM"],
+    "types": ["node"],
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,
     "composite": true,
-    "noEmit": true,
+    "rootDir": "..",
+    "outDir": "../../dist-electron/preload",
     "paths": {
-      "@shared/*": ["../shared/*"],
-      "@renderer/*": ["./*"]
+      "@shared/*": ["../shared/*"]
     }
   },
   "include": ["./**/*", "../shared/**/*"]

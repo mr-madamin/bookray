@@ -1,13 +1,8 @@
 {
-  "compilerOptions": {
-    "strict": true,
-    "moduleResolution": "bundler",
-    "resolveJsonModule": true,
-    "baseUrl": ".",
-    "paths": {
-      "@shared/*": ["src/shared/*"],
-      "@renderer/*": ["src/renderer/*"],
-      "@main/*": ["src/main/*"]
-    }
-  }
+  "files": [],
+  "references": [
+    { "path": "./src/main/tsconfig.json" },
+    { "path": "./src/preload/tsconfig.json" },
+    { "path": "./src/renderer/tsconfig.json" }
+  ]
 }

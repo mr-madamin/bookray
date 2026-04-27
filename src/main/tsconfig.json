@@ -1,11 +1,21 @@
 {
-  "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "target": "ES2020",
-    "module": "CommonJS",
-    "outDir": "../../dist/main",
-    "lib": ["ES2020"]       
-    // NO dom — compiler will catch accidental DOM usage in main
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022"],
+    "types": ["node"],
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "composite": true,
+    "rootDir": "..",
+    "outDir": "../../dist-electron/main",
+    "paths": {
+      "@shared/*": ["../shared/*"],
+      "@main/*": ["./*"]
+    }
   },
   "include": ["./**/*", "../shared/**/*"]
 }
