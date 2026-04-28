@@ -1,34 +1,66 @@
-import { app, BrowserWindow } from 'electron';
-import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
+import { app, BrowserWindow, session } from 'electron'
+import { join } from 'node:path'
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
+const isDev = !app.isPackaged
 
 function createWindow() {
-    const win = new BrowserWindow({
-        width: 1280,
-        height: 800,
-        webPreferences: {
-            preload: join(__dirname, '../preload/index.mjs'),
-            contextIsolation: true,
-            nodeIntegration: false,
-        }
-    })
+  const win = new BrowserWindow({
+    width: 1280,
+    height: 800,
+    webPreferences: {
+      preload: join(__dirname, '../preload/index.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  })
 
-    if (process.env.VITE_DEV_SERVER_URL) {
-        win.loadURL(process.env.VITE_DEV_SERVER_URL);
-        win.webContents.openDevTools();
-    } else {
-        win.loadFile(join(__dirname, '../../dist/index.html'));
-    }
+  if (isDev) {
+    win.loadURL('http://localhost:5173')
+    win.webContents.openDevTools()
+    process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = 'true'
+  } else {
+    win.loadFile(join(__dirname, '../renderer/index.html'))
+  }
 }
 
-app.whenReady().then(createWindow);
+function setupCSP() {
+  const cspDev = [
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: blob:",
+    "font-src 'self' data:",
+    "connect-src 'self' http://localhost:5173 ws://localhost:5173",
+  ].join('; ')
+
+  const cspProd = [
+    "default-src 'self'",
+    "script-src 'self'",
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: blob:",
+    "font-src 'self' data:",
+    "connect-src 'self'",
+  ].join('; ')
+
+  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        'Content-Security-Policy': [isDev ? cspDev : cspProd],
+      },
+    })
+  })
+}
+
+app.whenReady().then(() => {
+  setupCSP()
+  createWindow()
+})
 
 app.on('window-all-closed', () => {
-    if (process.platform !== 'darwin') app.quit();
-});
+  if (process.platform !== 'darwin') app.quit()
+})
 
 app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
-});
+  if (BrowserWindow.getAllWindows().length === 0) createWindow()
+})
