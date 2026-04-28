@@ -2,33 +2,34 @@
   "name": "bookray",
   "version": "0.1.0",
   "description": "Read and listen simultaneously",
-  "main": "dist-electron/main/index.js",
-  "type": "module",
+  "main": "dist/main/index.js",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
-    "preview": "vite preview"
+    "dev:main": "tsc -p src/main --watch --preserveWatchOutput",
+    "dev:preload": "tsc -p src/preload --watch --preserveWatchOutput",
+    "dev:renderer": "vite",
+    "dev:electron": "wait-on dist/main/index.js && electron .",
+    "dev": "concurrently -k -n MAIN,PRELOAD,RENDER,ELECTRON -c blue,cyan,green,magenta \"npm:dev:main\" \"npm:dev:preload\" \"npm:dev:renderer\" \"npm:dev:electron\"",
+    "build:main": "tsc -p src/main",
+    "build:preload": "tsc -p src/preload",
+    "build:renderer": "vite build",
+    "build": "npm run build:main && npm run build:preload && npm run build:renderer"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "dependencies": {
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
     "zustand": "^5.0.12"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4.2.4",
+    "@tailwindcss/vite": "^4.2.4",
     "@types/node": "^25.6.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
+    "concurrently": "^9.2.1",
     "electron": "^41.3.0",
-    "electron-builder": "^26.8.1",
-    "postcss": "^8.5.10",
     "tailwindcss": "^4.2.4",
     "typescript": "^6.0.3",
     "vite": "^8.0.10",
-    "vite-plugin-electron": "^1.0.0-beta.4"
+    "wait-on": "^9.0.5"
   }
 }

@@ -80,8 +80,8 @@ typings/
 /coverage
 
 # Production
-/dist
-/dist-electron
+dist
+dist-electron
 
 # misc
 .DS_Store

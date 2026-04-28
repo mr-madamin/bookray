@@ -1,20 +1,19 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "module": "ESNext",
-    "moduleResolution": "bundler",
+    "module": "Node16",
+    "moduleResolution": "Node16",
     "lib": ["ES2022", "DOM"],
     "types": ["node"],
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,
-    "composite": true,
-    "rootDir": "..",
-    "outDir": "../../dist-electron/preload",
+    "outDir": "../../dist/preload",
+    "sourceMap": true,
     "paths": {
       "@shared/*": ["../shared/*"]
     }
   },
-  "include": ["./**/*", "../shared/**/*"]
+  "include": ["./**/*"]
 }
