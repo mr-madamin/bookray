@@ -1,7 +1,7 @@
-import { app, BrowserWindow, session } from 'electron'
-import { join } from 'node:path'
+import { app, BrowserWindow, session } from 'electron';
+import { join } from 'node:path';
 
-const isDev = !app.isPackaged
+const isDev = !app.isPackaged;
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -12,14 +12,14 @@ function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
     },
-  })
+  });
 
   if (isDev) {
-    win.loadURL('http://localhost:5173')
-    win.webContents.openDevTools()
-    process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = 'true'
+    win.loadURL('http://localhost:5173');
+    win.webContents.openDevTools();
+    process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = 'true';
   } else {
-    win.loadFile(join(__dirname, '../renderer/index.html'))
+    win.loadFile(join(__dirname, '../renderer/index.html'));
   }
 }
 
@@ -31,7 +31,7 @@ function setupCSP() {
     "img-src 'self' data: blob:",
     "font-src 'self' data:",
     "connect-src 'self' http://localhost:5173 ws://localhost:5173",
-  ].join('; ')
+  ].join('; ');
 
   const cspProd = [
     "default-src 'self'",
@@ -40,7 +40,7 @@ function setupCSP() {
     "img-src 'self' data: blob:",
     "font-src 'self' data:",
     "connect-src 'self'",
-  ].join('; ')
+  ].join('; ');
 
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
     callback({
@@ -48,19 +48,19 @@ function setupCSP() {
         ...details.responseHeaders,
         'Content-Security-Policy': [isDev ? cspDev : cspProd],
       },
-    })
-  })
+    });
+  });
 }
 
 app.whenReady().then(() => {
-  setupCSP()
-  createWindow()
-})
+  setupCSP();
+  createWindow();
+});
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit()
-})
+  if (process.platform !== 'darwin') app.quit();
+});
 
 app.on('activate', () => {
-  if (BrowserWindow.getAllWindows().length === 0) createWindow()
-})
+  if (BrowserWindow.getAllWindows().length === 0) createWindow();
+});

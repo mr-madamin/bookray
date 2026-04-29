@@ -1,5 +1,3 @@
 import { contextBridge } from 'electron';
 
-contextBridge.exposeInMainWorld('bookray', {
-
-});
+contextBridge.exposeInMainWorld('bookray', {});
