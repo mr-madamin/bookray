@@ -1,3 +1,12 @@
-import { contextBridge } from 'electron';
+import { contextBridge, ipcRenderer } from 'electron';
 
-contextBridge.exposeInMainWorld('bookray', {});
+// Channel names must stay in sync with src/shared/constants/ipc-channels.ts.
+// The preload is compiled by its own tsc project (no bundler), so path aliases
+// aren't rewritten in the output — inline constants are safer here.
+const OPEN_FILE = 'bookray:open-file';
+const LOAD_EPUB = 'bookray:load-epub';
+
+contextBridge.exposeInMainWorld('bookray', {
+  openFile: (): Promise<string | null> => ipcRenderer.invoke(OPEN_FILE),
+  loadEpub: (filePath: string) => ipcRenderer.invoke(LOAD_EPUB, filePath),
+});

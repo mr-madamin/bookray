@@ -1,5 +1,9 @@
-import { app, BrowserWindow, session } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, session } from 'electron';
+import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { IPC } from '../shared/constants/ipc-channels.ts';
+import { parseEpub } from './core/epub.ts';
+import type { EpubManifestItem } from '../shared/types/epub.types.ts';
 
 const isDev = !app.isPackaged;
 
@@ -52,8 +56,29 @@ function setupCSP() {
   });
 }
 
+function setupIPC() {
+  ipcMain.handle(IPC.OPEN_FILE, async () => {
+    const { canceled, filePaths } = await dialog.showOpenDialog({
+      properties: ['openFile'],
+      filters: [{ name: 'EPUB Books', extensions: ['epub'] }],
+    });
+    return canceled ? null : filePaths[0];
+  });
+
+  ipcMain.handle(IPC.LOAD_EPUB, async (_event, filePath: string) => {
+    const buffer = await readFile(filePath);
+    const book = parseEpub(buffer);
+    const manifest: Record<string, EpubManifestItem> = {};
+    for (const [id, item] of book.manifest) {
+      manifest[id] = item;
+    }
+    return { ...book, manifest };
+  });
+}
+
 app.whenReady().then(() => {
   setupCSP();
+  setupIPC();
   createWindow();
 });
 
