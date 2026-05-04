@@ -1,0 +1,33 @@
+import { create } from 'zustand';
+import type { SerializedEpubBook } from '@shared/types';
+
+export interface LibraryBook {
+  id: string;
+  filePath: string;
+  book: SerializedEpubBook;
+}
+
+interface LibraryState {
+  books: LibraryBook[];
+  selectedId: string | null;
+  addBook: (filePath: string, book: SerializedEpubBook) => void;
+  selectBook: (id: string) => void;
+}
+
+export const useLibraryStore = create<LibraryState>((set) => ({
+  books: [],
+  selectedId: null,
+  addBook: (filePath, book) => {
+    const id = filePath;
+    set((state) => {
+      if (state.books.some((b) => b.id === id)) {
+        return { selectedId: id };
+      }
+      return {
+        books: [...state.books, { id, filePath, book }],
+        selectedId: id,
+      };
+    });
+  },
+  selectBook: (id) => set({ selectedId: id }),
+}));

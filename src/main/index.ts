@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { IPC } from '../shared/constants/ipc-channels.ts';
 import { parseEpub } from './core/epub.ts';
+import { parseZip } from './core/zip.ts';
 import type { EpubManifestItem } from '../shared/types/epub.types.ts';
 
 const isDev = !app.isPackaged;
@@ -72,7 +73,21 @@ function setupIPC() {
     for (const [id, item] of book.manifest) {
       manifest[id] = item;
     }
-    return { ...book, manifest };
+
+    let coverDataUrl: string | undefined;
+    if (book.metadata.coverPath) {
+      const zip = parseZip(buffer);
+      const coverEntry = zip.get(book.metadata.coverPath);
+      if (coverEntry) {
+        const coverItem = [...book.manifest.values()].find(
+          (item) => item.path === book.metadata.coverPath,
+        );
+        const mimeType = coverItem?.mediaType ?? 'image/jpeg';
+        coverDataUrl = `data:${mimeType};base64,${coverEntry.data.toString('base64')}`;
+      }
+    }
+
+    return { ...book, manifest, coverDataUrl };
   });
 }
 
