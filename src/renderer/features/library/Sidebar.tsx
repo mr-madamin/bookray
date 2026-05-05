@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useLibraryStore } from './library.store';
 import BookListItem from './BookListItem';
+import ChapterList from '../reader/ChapterList';
 
 function Logo() {
   return (
@@ -21,11 +22,24 @@ function Logo() {
   );
 }
 
+function SectionLabel({ children }: { children: string }) {
+  return (
+    <p className="px-4 py-2 text-xs font-semibold uppercase tracking-widest text-slate-600">
+      {children}
+    </p>
+  );
+}
+
 export default function Sidebar() {
   const books = useLibraryStore((s) => s.books);
+  const selectedId = useLibraryStore((s) => s.selectedId);
+  const selectedChapterPath = useLibraryStore((s) => s.selectedChapterPath);
   const addBook = useLibraryStore((s) => s.addBook);
+  const selectChapter = useLibraryStore((s) => s.selectChapter);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const selectedBook = books.find((b) => b.id === selectedId) ?? null;
 
   async function handleOpenEpub() {
     setError(null);
@@ -43,8 +57,9 @@ export default function Sidebar() {
   }
 
   return (
-    <aside className="w-60 shrink-0 bg-slate-900 border-r border-slate-800 flex flex-col h-full">
-      <div className="px-4 pt-5 pb-4 border-b border-slate-800">
+    <aside className="w-60 shrink-0 bg-slate-900 border-r border-slate-800 flex flex-col h-full overflow-hidden">
+      {/* Header */}
+      <div className="px-4 pt-5 pb-4 border-b border-slate-800 shrink-0">
         <div className="mb-4">
           <Logo />
         </div>
@@ -58,21 +73,35 @@ export default function Sidebar() {
         {error && <p className="mt-2 text-xs text-red-400 leading-snug">{error}</p>}
       </div>
 
-      <div className="px-4 pt-4 pb-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-slate-600">Library</p>
+      {/* Library section — capped height so the chapter list always has room */}
+      <div className="shrink-0 flex flex-col" style={{ maxHeight: '35%' }}>
+        <SectionLabel>Library</SectionLabel>
+        <div className="overflow-y-auto px-2 pb-2 space-y-0.5">
+          {books.length === 0 ? (
+            <p className="text-xs text-slate-600 text-center mt-4 px-4 leading-relaxed">
+              No books yet.
+              <br />
+              Open an EPUB to get started.
+            </p>
+          ) : (
+            books.map((entry) => <BookListItem key={entry.id} entry={entry} />)
+          )}
+        </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-2 pb-4 space-y-0.5">
-        {books.length === 0 ? (
-          <p className="text-xs text-slate-600 text-center mt-6 px-4 leading-relaxed">
-            No books yet.
-            <br />
-            Open an EPUB to get started.
-          </p>
-        ) : (
-          books.map((entry) => <BookListItem key={entry.id} entry={entry} />)
-        )}
-      </div>
+      {/* Chapter list — fills remaining space */}
+      {selectedBook && (
+        <div className="flex flex-col flex-1 min-h-0 border-t border-slate-800">
+          <SectionLabel>Contents</SectionLabel>
+          <div className="flex-1 overflow-y-auto px-2 pb-4">
+            <ChapterList
+              book={selectedBook.book}
+              selectedPath={selectedChapterPath}
+              onSelect={selectChapter}
+            />
+          </div>
+        </div>
+      )}
     </aside>
   );
 }
