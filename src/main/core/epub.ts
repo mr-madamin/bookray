@@ -26,8 +26,10 @@ const NS = {
 const MIMETYPE_VALUE = 'application/epub+zip';
 
 export function parseEpub(input: Buffer | ArrayBuffer): EpubBook {
-  const zip = parseZip(input);
+  return parseEpubFromZip(parseZip(input));
+}
 
+export function parseEpubFromZip(zip: ReturnType<typeof parseZip>): EpubBook {
   // 1. Validate the magic mimetype entry.
   const mimetype = zip.get('mimetype');
   if (!mimetype || mimetype.data.toString('utf8').trim() !== MIMETYPE_VALUE) {
