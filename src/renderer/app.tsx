@@ -1,16 +1,13 @@
 import { useLibraryStore } from './features/library/library.store';
 import Sidebar from './features/library/Sidebar';
 import BookHeader from './features/reader/BookHeader';
+import ChapterRenderer from './features/reader/ChapterRenderer';
 
 function EmptyState() {
   return (
     <div className="h-full flex items-center justify-center">
       <div className="text-center select-none">
-        <svg
-          viewBox="0 0 64 64"
-          fill="none"
-          className="w-16 h-16 mx-auto mb-4 text-slate-700"
-        >
+        <svg viewBox="0 0 64 64" fill="none" className="w-16 h-16 mx-auto mb-4 text-slate-700">
           <rect x="8" y="6" width="36" height="48" rx="3" fill="currentColor" opacity="0.4" />
           <rect x="4" y="6" width="6" height="48" rx="2" fill="currentColor" opacity="0.6" />
           <rect x="20" y="10" width="20" height="2" rx="1" fill="currentColor" opacity="0.5" />
@@ -28,13 +25,22 @@ function EmptyState() {
 export default function App() {
   const books = useLibraryStore((s) => s.books);
   const selectedId = useLibraryStore((s) => s.selectedId);
+  const selectedChapterPath = useLibraryStore((s) => s.selectedChapterPath);
   const selectedBook = books.find((b) => b.id === selectedId) ?? null;
+
+  const showReader = selectedBook !== null && selectedChapterPath !== null;
 
   return (
     <div className="flex h-screen bg-slate-950 text-white overflow-hidden">
       <Sidebar />
-      <main className="flex-1 overflow-y-auto">
-        {selectedBook ? <BookHeader entry={selectedBook} /> : <EmptyState />}
+      {/* When the reader is active the main area must NOT scroll — the iframe
+          handles its own scrolling internally. */}
+      <main className={`flex-1 min-w-0 ${showReader ? 'overflow-hidden flex flex-col' : 'overflow-y-auto'}`}>
+        {!selectedBook && <EmptyState />}
+        {selectedBook && !selectedChapterPath && <BookHeader entry={selectedBook} />}
+        {showReader && (
+          <ChapterRenderer entry={selectedBook} chapterPath={selectedChapterPath} />
+        )}
       </main>
     </div>
   );
