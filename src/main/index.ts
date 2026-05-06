@@ -22,7 +22,7 @@ async function getZip(filePath: string): Promise<Map<string, ZipEntry>> {
 
 function createWindow() {
   const win = new BrowserWindow({
-    width: 1280,
+    width: 1480,
     height: 800,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
@@ -78,7 +78,9 @@ function resolveZipPath(basePath: string, href: string): string {
   } catch {
     /* keep original */
   }
-  const dir = basePath.includes('/') ? basePath.slice(0, basePath.lastIndexOf('/')) : '';
+  const dir = basePath.includes('/')
+    ? basePath.slice(0, basePath.lastIndexOf('/'))
+    : '';
   const combined = dir ? `${dir}/${decoded}` : decoded;
   const parts: string[] = [];
   for (const seg of combined.split('/')) {
@@ -119,12 +121,18 @@ function processCssUrls(
   sharedAssets: Record<string, string>,
 ): string {
   return css.replace(/url\(["']?([^"')]+)["']?\)/g, (match, url: string) => {
-    if (url.startsWith('data:') || url.startsWith('http') || url.startsWith('//')) return match;
+    if (
+      url.startsWith('data:') ||
+      url.startsWith('http') ||
+      url.startsWith('//')
+    )
+      return match;
     const zipPath = resolveZipPath(cssZipPath, url);
     if (!sharedAssets[zipPath]) {
       const entry = zip.get(zipPath);
       if (entry) {
-        sharedAssets[zipPath] = `data:${guessMimeType(zipPath)};base64,${entry.data.toString('base64')}`;
+        sharedAssets[zipPath] =
+          `data:${guessMimeType(zipPath)};base64,${entry.data.toString('base64')}`;
       }
     }
     return sharedAssets[zipPath] ? `url("${sharedAssets[zipPath]}")` : match;
@@ -147,7 +155,12 @@ function collectChapterAssets(
   let m: RegExpExecArray | null;
   while ((m = RE.exec(xhtml)) !== null) {
     const url = m[1];
-    if (url.startsWith('http') || url.startsWith('data:') || url.startsWith('//')) continue;
+    if (
+      url.startsWith('http') ||
+      url.startsWith('data:') ||
+      url.startsWith('//')
+    )
+      continue;
     const zipPath = resolveZipPath(chapterPath, url);
     if (assets[zipPath] ?? stylesheets[zipPath]) continue;
 
@@ -158,7 +171,8 @@ function collectChapterAssets(
       const cssText = entry.data.toString('utf8');
       stylesheets[zipPath] = processCssUrls(cssText, zipPath, zip, assets);
     } else {
-      assets[zipPath] = `data:${guessMimeType(zipPath)};base64,${entry.data.toString('base64')}`;
+      assets[zipPath] =
+        `data:${guessMimeType(zipPath)};base64,${entry.data.toString('base64')}`;
     }
   }
 
@@ -189,11 +203,7 @@ function setupIPC() {
     if (book.metadata.coverPath) {
       const coverEntry = zip.get(book.metadata.coverPath);
       if (coverEntry) {
-        const coverItem = [...book.manifest.values()].find(
-          (item) => item.path === book.metadata.coverPath,
-        );
-        const mimeType = coverItem?.mediaType ?? 'image/jpeg';
-        coverDataUrl = `data:${mimeType};base64,${coverEntry.data.toString('base64')}`;
+        coverDataUrl = `data:${guessMimeType(book.metadata.coverPath)};base64,${coverEntry.data.toString('base64')}`;
       }
     }
 
@@ -205,10 +215,15 @@ function setupIPC() {
     async (_event, filePath: string, chapterPath: string) => {
       const zip = await getZip(filePath);
       const entry = zip.get(chapterPath);
-      if (!entry) throw new Error(`Chapter not found in archive: ${chapterPath}`);
+      if (!entry)
+        throw new Error(`Chapter not found in archive: ${chapterPath}`);
 
       const xhtml = entry.data.toString('utf8');
-      const { assets, stylesheets } = collectChapterAssets(xhtml, chapterPath, zip);
+      const { assets, stylesheets } = collectChapterAssets(
+        xhtml,
+        chapterPath,
+        zip,
+      );
       return { xhtml, assets, stylesheets };
     },
   );
