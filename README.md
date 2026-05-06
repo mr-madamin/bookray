@@ -91,6 +91,56 @@ book.epub  (renamed ZIP)
 │       └── figure1.png
 ```
 
+### Packing a directory into an EPUB
+
+The `mimetype` file has two hard requirements that a plain `zip` invocation would violate if you're not careful:
+
+- it must be the **first entry** in the Central Directory
+- it must be **stored uncompressed** (compression method 0)
+
+Most EPUB validators check both. BookRay's own parser enforces the value (`application/epub+zip`) but not the position or compression method, so a wrongly-packed file will still open — but it won't pass epubcheck.
+
+**macOS / Linux (`zip`):**
+
+```bash
+cd my-book/
+
+# 1. Create the archive with mimetype first, stored (-0), no extra metadata (-X)
+zip -X0 ../my-book.epub mimetype
+
+# 2. Append everything else, compressed (-9), recursively (-r)
+zip -rX9 ../my-book.epub META-INF OEBPS
+```
+
+The `-X` flag strips the "extra field" that macOS's `zip` adds to every entry; some validators reject it.
+
+**Python (cross-platform):**
+
+```python
+import os, zipfile
+
+def pack_epub(source_dir: str, output_path: str) -> None:
+    with zipfile.ZipFile(output_path, "w") as zf:
+        # mimetype: first, uncompressed
+        zf.write(
+            os.path.join(source_dir, "mimetype"),
+            "mimetype",
+            compress_type=zipfile.ZIP_STORED,
+        )
+        # everything else: normal deflate
+        for root, _, files in os.walk(source_dir):
+            for name in files:
+                full = os.path.join(root, name)
+                arc = os.path.relpath(full, source_dir)
+                if arc == "mimetype":
+                    continue
+                zf.write(full, arc, compress_type=zipfile.ZIP_DEFLATED)
+
+pack_epub("my-book", "my-book.epub")
+```
+
+---
+
 ### How BookRay reads an EPUB
 
 1. **ZIP** — `zip.ts` scans the Central Directory from the end of the file, reads each Local File Header, and decompresses entries (store or DEFLATE). The result is a `Map<zipPath, Buffer>`.
