@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron';
+import { contextBridge, ipcRenderer, webUtils } from 'electron';
 
 // Channel names must stay in sync with src/shared/constants/ipc-channels.ts.
 // The preload is compiled by its own tsc project (no bundler), so path aliases
@@ -12,4 +12,5 @@ contextBridge.exposeInMainWorld('bookray', {
   loadEpub: (filePath: string) => ipcRenderer.invoke(LOAD_EPUB, filePath),
   getChapterContent: (filePath: string, chapterPath: string) =>
     ipcRenderer.invoke(GET_CHAPTER_CONTENT, filePath, chapterPath),
+  getFilePath: (file: File): string => webUtils.getPathForFile(file),
 });

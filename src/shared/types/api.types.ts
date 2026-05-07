@@ -23,6 +23,7 @@ export interface BookrayAPI {
   openFile: () => Promise<string | null>;
   loadEpub: (filePath: string) => Promise<SerializedEpubBook>;
   getChapterContent: (filePath: string, chapterPath: string) => Promise<ChapterContent>;
+  getFilePath: (file: File) => string;
 }
 
 declare global {
