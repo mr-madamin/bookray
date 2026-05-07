@@ -52,7 +52,7 @@ export default function ChapterList({ book, selectedPath, onSelect }: Props) {
             title={entry.label}
             className={`w-full text-left rounded px-2 py-1.5 text-xs leading-snug transition-colors ${
               isSelected
-                ? 'bg-amber-500/10 text-amber-400 border-l-2 border-amber-500'
+                ? 'bg-blue-500/10 text-blue-400 border-l-2 border-blue-500'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 border-l-2 border-transparent'
             }`}
             style={{ paddingLeft: `${0.5 + entry.depth * 0.75}rem` }}

@@ -30,7 +30,7 @@ export default function BookHeader({ entry }: Props) {
 
       <div className="flex flex-col justify-center gap-2 min-w-0">
         {metadata.language && (
-          <p className="text-xs font-semibold uppercase tracking-widest text-amber-500">
+          <p className="text-xs font-semibold uppercase tracking-widest text-blue-400">
             {metadata.language}
           </p>
         )}

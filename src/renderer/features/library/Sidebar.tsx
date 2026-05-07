@@ -6,7 +6,7 @@ import ChapterList from '../reader/ChapterList';
 function Logo() {
   return (
     <div className="flex items-center gap-2.5">
-      <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5 text-amber-400 shrink-0">
+      <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5 text-blue-400 shrink-0">
         <circle cx="12" cy="12" r="4" fill="currentColor" />
         <line x1="12" y1="2" x2="12" y2="5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
         <line x1="12" y1="19" x2="12" y2="22" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
@@ -66,7 +66,7 @@ export default function Sidebar() {
         <button
           onClick={handleOpenEpub}
           disabled={loading}
-          className="w-full bg-amber-500 hover:bg-amber-400 active:bg-amber-600 disabled:opacity-50 text-slate-950 font-medium text-sm rounded-lg px-3 py-2 transition-colors cursor-pointer disabled:cursor-not-allowed"
+          className="w-full bg-blue-500 hover:bg-blue-400 active:bg-blue-600 disabled:opacity-50 text-white font-medium text-sm rounded-lg px-3 py-2 transition-colors cursor-pointer disabled:cursor-not-allowed"
         >
           {loading ? 'Loading…' : '+ Open EPUB'}
         </button>

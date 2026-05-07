@@ -27,7 +27,7 @@ function buildThemeCSS({ fontSize, lineHeight }: ReaderSettings): string {
       padding: 2rem 1.5rem 4rem !important;
     }
     h1, h2, h3, h4, h5, h6 { color: #f1f5f9 !important; line-height: 1.3; }
-    a { color: #fbbf24; text-decoration: underline; }
+    a { color: #60a5fa; text-decoration: underline; }
     img, svg { max-width: 100%; height: auto; display: block; margin: 1em auto; }
     p { margin-top: 0; margin-bottom: 0.75em; }
     blockquote {
