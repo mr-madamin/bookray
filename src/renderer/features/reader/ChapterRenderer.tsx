@@ -10,7 +10,103 @@ interface ReaderSettings {
 
 const DEFAULT_SETTINGS: ReaderSettings = { fontSize: 17, lineHeight: 1.75 };
 
-// ── Theme CSS injected into the iframe ───────────────────────────────────────
+// Width threshold for switching to a two-column book spread.
+const TWO_PAGE_MIN_WIDTH = 900;
+
+// ── Position persistence ─────────────────────────────────────────────────────
+//
+// We persist a 0–1 fraction rather than a raw page index so that the position
+// survives font-size and window-size changes. On restore, we multiply by the
+// new page count and round.
+
+function posKey(bookId: string, chapterPath: string) {
+  return `br-pos:${bookId}:${chapterPath}`;
+}
+
+function savePos(bookId: string, chapterPath: string, page: number, total: number) {
+  if (total <= 1) return;
+  try {
+    localStorage.setItem(posKey(bookId, chapterPath), String(page / total));
+  } catch { /* private mode or storage full */ }
+}
+
+function loadPos(bookId: string, chapterPath: string, total: number): number {
+  try {
+    const raw = localStorage.getItem(posKey(bookId, chapterPath));
+    if (!raw) return 0;
+    const frac = parseFloat(raw);
+    if (!isFinite(frac)) return 0;
+    return Math.min(total - 1, Math.max(0, Math.round(frac * total)));
+  } catch {
+    return 0;
+  }
+}
+
+// ── Pagination math ──────────────────────────────────────────────────────────
+//
+// With CSS `column-width: Xpx` on <body>, the browser lays content into as many
+// X-wide columns as needed. body.scrollWidth equals the total column count × X.
+// We translate the body left by pageIndex * stepWidth to reveal each page.
+//
+// The +0.5 epsilon before rounding guards against sub-pixel scrollWidth values
+// (e.g. 799.8 rounding down to 0 pages when it should be 1).
+
+function measureTotalPages(iframe: HTMLIFrameElement, stepWidth: number): number {
+  const body = iframe.contentDocument?.body;
+  if (!body || stepWidth === 0) return 1;
+  return Math.max(1, Math.round((body.scrollWidth + 0.5) / stepWidth));
+}
+
+function applyPage(iframe: HTMLIFrameElement, page: number, stepWidth: number) {
+  const body = iframe.contentDocument?.body;
+  if (!body) return;
+  body.style.transform = `translateX(${-page * stepWidth}px)`;
+}
+
+// ── Layout helper ────────────────────────────────────────────────────────────
+//
+// Single-page:  column-width = containerWidth, stepWidth = containerWidth
+// Two-page:     column-width = containerWidth/2, stepWidth = containerWidth
+//               Two columns fill the viewport naturally; one "page turn" = 2 cols
+
+function getLayout(containerWidth: number) {
+  const twoPage = containerWidth >= TWO_PAGE_MIN_WIDTH;
+  const columnWidth = twoPage ? Math.floor(containerWidth / 2) : containerWidth;
+  const stepWidth = containerWidth; // always advance by the full viewport width
+  return { columnWidth, stepWidth, twoPage };
+}
+
+// ── CSS ──────────────────────────────────────────────────────────────────────
+//
+// The pager style uses a CSS custom property --br-pw (BookRay page width) for
+// column-width. The parent sets this var after the iframe loads, which triggers
+// a synchronous reflow so that reading body.scrollWidth immediately after gives
+// the correct columned layout dimensions.
+//
+// The #bookray-pg wrapper div receives the per-page padding. Padding on the
+// multicol container itself would not apply per-column; the wrapper div is
+// inside each column so its padding is scoped per page.
+
+function buildPagerCSS(): string {
+  return `
+    html { height: 100%; overflow: hidden; }
+    body {
+      height: 100% !important;
+      overflow: hidden !important;
+      max-width: none !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      column-width: var(--br-pw, 800px) !important;
+      column-gap: 0 !important;
+      column-fill: auto !important;
+      will-change: transform;
+      transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    #bookray-pg { padding: 2.5rem 3.5rem; }
+    img, figure, table, pre { break-inside: avoid; page-break-inside: avoid; }
+    p, li { orphans: 2; widows: 2; }
+  `.trim();
+}
 
 function buildThemeCSS({ fontSize, lineHeight }: ReaderSettings): string {
   return `
@@ -22,12 +118,9 @@ function buildThemeCSS({ fontSize, lineHeight }: ReaderSettings): string {
       font-size: ${fontSize}px !important;
       line-height: ${lineHeight} !important;
       font-family: Georgia, 'Times New Roman', serif;
-      max-width: 68ch;
-      margin: 0 auto !important;
-      padding: 2rem 1.5rem 4rem !important;
     }
     h1, h2, h3, h4, h5, h6 { color: #f1f5f9 !important; line-height: 1.3; }
-    a { color: #60a5fa; text-decoration: underline; }
+    a { color: #60a5fa; }
     img, svg { max-width: 100%; height: auto; display: block; margin: 1em auto; }
     p { margin-top: 0; margin-bottom: 0.75em; }
     blockquote {
@@ -41,15 +134,11 @@ function buildThemeCSS({ fontSize, lineHeight }: ReaderSettings): string {
   `.trim();
 }
 
-// ── Asset path resolver (mirrors the one in main) ────────────────────────────
+// ── Asset path resolver ──────────────────────────────────────────────────────
 
 function resolveRelativePath(basePath: string, href: string): string {
   let decoded = href;
-  try {
-    decoded = decodeURIComponent(href);
-  } catch {
-    /* keep original */
-  }
+  try { decoded = decodeURIComponent(href); } catch { /* keep original */ }
   const dir = basePath.includes('/') ? basePath.slice(0, basePath.lastIndexOf('/')) : '';
   const combined = dir ? `${dir}/${decoded}` : decoded;
   const parts: string[] = [];
@@ -61,19 +150,11 @@ function resolveRelativePath(basePath: string, href: string): string {
   return parts.join('/');
 }
 
-// ── XHTML → srcdoc processor ─────────────────────────────────────────────────
+// ── XHTML → srcdoc ──────────────────────────────────────────────────────────
 //
-// Security model:
-//   - The iframe uses sandbox="allow-same-origin" only.
-//     * No allow-scripts → zero JS execution inside the iframe.
-//     * allow-same-origin lets the parent (this component) access
-//       iframe.contentDocument to update theme CSS without a full reload.
-//   - srcdoc is safer than src because the document has no URL of its own;
-//     there is no base URL for relative requests to resolve against, so any
-//     asset reference we didn't explicitly inline simply fails to load.
-//   - All external-origin hrefs on <a> are removed; clicks do nothing.
-//   - <script> elements are stripped before injection; even if sandbox were
-//     loosened later, there's nothing to run.
+// Security model unchanged from before — sandbox="allow-same-origin", no scripts.
+// New: we wrap the <body> content in <div id="bookray-pg"> for per-page padding,
+// and inject a second <style id="bookray-pager"> for the column layout.
 
 function buildSrcdoc(
   xhtml: string,
@@ -84,9 +165,7 @@ function buildSrcdoc(
 ): string {
   let html = xhtml;
 
-  // 1. Inline linked stylesheets → <style> blocks.
-  //    CSS url() references were already inlined by the main process, so the
-  //    text we receive is self-contained.
+  // 1. Inline linked stylesheets
   html = html.replace(/<link\b([^>]+)>/gi, (match, attrs: string) => {
     if (!/rel=["']stylesheet["']/i.test(attrs)) return match;
     const m = attrs.match(/href=["']([^"']+)["']/i);
@@ -98,7 +177,7 @@ function buildSrcdoc(
     return css ? `<style>\n${css}\n</style>` : '';
   });
 
-  // 2. Replace binary asset src= attributes (img, audio, video, source…).
+  // 2. Replace binary asset src= attributes
   html = html.replace(/\bsrc=(["'])([^"']+)\1/gi, (match, q: string, url: string) => {
     if (url.startsWith('data:') || url.startsWith('http') || url.startsWith('//')) return match;
     const zipPath = resolveRelativePath(chapterPath, url);
@@ -106,28 +185,37 @@ function buildSrcdoc(
     return dataUrl ? `src=${q}${dataUrl}${q}` : match;
   });
 
-  // 3. Strip scripts — belt-and-suspenders on top of sandbox.
+  // 3. Strip scripts and event handlers
   html = html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '');
-  // Also strip inline event handlers.
   html = html.replace(/\s+on\w+=(["'])[^"']*\1/gi, '');
 
-  // 4. Remove external link hrefs so clicks do nothing (navigation is already
-  //    blocked by sandbox, but removing href avoids cursor confusion).
+  // 4. Remove external link hrefs
   html = html.replace(/\bhref=(["'])(https?:\/\/[^"']*)\1/gi, '');
 
-  // 5. Inject theme style into <head>.  This element gets replaced on theme
-  //    changes via contentDocument without a full srcdoc reload.
-  const themeTag = `<style id="bookray-theme">\n${buildThemeCSS(settings)}\n</style>`;
+  // 5. Wrap body content for per-column padding.
+  //    Greedy [\s\S]* matches from the first <body> tag to the last </body>,
+  //    which is correct for valid XHTML.
+  html = html.replace(
+    /(<body(?:\s[^>]*)?>)([\s\S]*)(<\/body>)/i,
+    (_, open, inner, close) => `${open}<div id="bookray-pg">${inner}</div>${close}`,
+  );
+
+  // 6. Inject styles — pager first so theme can override if needed
+  const styles = [
+    `<style id="bookray-pager">\n${buildPagerCSS()}\n</style>`,
+    `<style id="bookray-theme">\n${buildThemeCSS(settings)}\n</style>`,
+  ].join('\n');
+
   if (/<\/head>/i.test(html)) {
-    html = html.replace(/<\/head>/i, `${themeTag}\n</head>`);
+    html = html.replace(/<\/head>/i, `${styles}\n</head>`);
   } else {
-    html = `<head>${themeTag}</head>\n${html}`;
+    html = `<head>${styles}</head>\n${html}`;
   }
 
   return html;
 }
 
-// ── Controls toolbar ─────────────────────────────────────────────────────────
+// ── ReaderControls ───────────────────────────────────────────────────────────
 
 interface ControlsProps {
   settings: ReaderSettings;
@@ -142,29 +230,54 @@ function ReaderControls({ settings, onFontSize, onLineHeight }: ControlsProps) {
     <div className="flex items-center gap-3 px-4 py-2 border-b border-slate-800 bg-slate-900 shrink-0 select-none">
       <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Text</span>
       <div className="flex items-center gap-1">
-        <button onClick={() => onFontSize(-1)} className={btn} title="Smaller">
-          A−
-        </button>
-        <span className="text-xs text-slate-500 tabular-nums w-7 text-center">
-          {settings.fontSize}
-        </span>
-        <button onClick={() => onFontSize(1)} className={btn} title="Larger">
-          A+
-        </button>
+        <button onClick={() => onFontSize(-1)} className={btn} title="Smaller">A−</button>
+        <span className="text-xs text-slate-500 tabular-nums w-7 text-center">{settings.fontSize}</span>
+        <button onClick={() => onFontSize(1)} className={btn} title="Larger">A+</button>
       </div>
       <div className="w-px h-4 bg-slate-800" />
       <div className="flex items-center gap-1">
         <span className="text-xs text-slate-500">Spacing</span>
-        <button onClick={() => onLineHeight(-0.1)} className={btn} title="Tighter">
-          −
-        </button>
+        <button onClick={() => onLineHeight(-0.1)} className={btn} title="Tighter">−</button>
         <span className="text-xs text-slate-500 tabular-nums w-7 text-center">
           {settings.lineHeight.toFixed(1)}
         </span>
-        <button onClick={() => onLineHeight(0.1)} className={btn} title="Looser">
-          +
-        </button>
+        <button onClick={() => onLineHeight(0.1)} className={btn} title="Looser">+</button>
       </div>
+    </div>
+  );
+}
+
+// ── PaginationBar ─────────────────────────────────────────────────────────────
+
+interface PaginationBarProps {
+  page: number;
+  total: number;
+  twoPage: boolean;
+  onPrev: () => void;
+  onNext: () => void;
+}
+
+function PaginationBar({ page, total, twoPage, onPrev, onNext }: PaginationBarProps) {
+  const btn =
+    'h-8 w-8 rounded flex items-center justify-center text-slate-400 hover:bg-slate-800 hover:text-slate-200 transition-colors disabled:opacity-25 disabled:cursor-not-allowed';
+  return (
+    <div className="flex items-center justify-between px-6 py-2 border-t border-slate-800 bg-slate-900 shrink-0 select-none">
+      <button onClick={onPrev} disabled={page === 0} className={btn} title="Previous page (←)">
+        <svg viewBox="0 0 16 16" fill="none" className="w-4 h-4">
+          <path d="M10 12L6 8l4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+      <span className="text-xs text-slate-500 tabular-nums">
+        {twoPage ? 'Spread' : 'Page'}{' '}
+        <span className="text-slate-300">{page + 1}</span>
+        <span className="text-slate-700 mx-1">/</span>
+        {total}
+      </span>
+      <button onClick={onNext} disabled={page >= total - 1} className={btn} title="Next page (→)">
+        <svg viewBox="0 0 16 16" fill="none" className="w-4 h-4">
+          <path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
     </div>
   );
 }
@@ -177,18 +290,100 @@ interface Props {
 }
 
 export default function ChapterRenderer({ entry, chapterPath }: Props) {
+  const containerRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+
   const [srcdoc, setSrcdoc] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [settings, setSettings] = useState<ReaderSettings>(DEFAULT_SETTINGS);
 
-  // Fetch and process chapter content whenever the chapter changes.
+  // Pagination display state
+  const [page, setPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [twoPage, setTwoPage] = useState(false);
+
+  // Refs to avoid stale closures in stable callbacks (keyboard, resize observer).
+  // These are always kept in sync with the state values above.
+  const pageRef = useRef(0);
+  const totalRef = useRef(1);
+  const stepWidthRef = useRef(0);
+
+  // Drag tracking for swipe gestures
+  const dragStartX = useRef<number | null>(null);
+
+  // ── Layout ─────────────────────────────────────────────────────────────────
+
+  function currentLayout() {
+    const w = containerRef.current?.clientWidth ?? 800;
+    return getLayout(w);
+  }
+
+  // ── Core pagination operations ─────────────────────────────────────────────
+
+  function syncState(p: number, total: number, step: number, tp: boolean) {
+    pageRef.current = p;
+    totalRef.current = total;
+    stepWidthRef.current = step;
+    setPage(p);
+    setTotalPages(total);
+    setTwoPage(tp);
+  }
+
+  // Called once after iframe loads. Sets the CSS var, measures pages, restores position.
+  function initPagination() {
+    const iframe = iframeRef.current;
+    const doc = iframe?.contentDocument;
+    if (!doc) return;
+
+    const { columnWidth, stepWidth, twoPage: tp } = currentLayout();
+
+    // Setting --br-pw triggers a synchronous reflow. body.scrollWidth read
+    // immediately after reflects the new column layout.
+    doc.documentElement.style.setProperty('--br-pw', `${columnWidth}px`);
+
+    const total = measureTotalPages(iframe!, stepWidth);
+    const restored = loadPos(entry.id, chapterPath, total);
+
+    syncState(restored, total, stepWidth, tp);
+    applyPage(iframe!, restored, stepWidth);
+  }
+
+  // Called on resize or font change. Preserves fractional position.
+  function recheckPages() {
+    const iframe = iframeRef.current;
+    const doc = iframe?.contentDocument;
+    if (!doc) return;
+
+    const { columnWidth, stepWidth, twoPage: tp } = currentLayout();
+    doc.documentElement.style.setProperty('--br-pw', `${columnWidth}px`);
+
+    const total = measureTotalPages(iframe!, stepWidth);
+    const frac = totalRef.current > 1 ? pageRef.current / totalRef.current : 0;
+    const newPage = Math.min(total - 1, Math.max(0, Math.round(frac * total)));
+
+    syncState(newPage, total, stepWidth, tp);
+    applyPage(iframe!, newPage, stepWidth);
+  }
+
+  function goToPage(target: number) {
+    const iframe = iframeRef.current;
+    if (!iframe) return;
+    const clamped = Math.max(0, Math.min(totalRef.current - 1, target));
+    applyPage(iframe, clamped, stepWidthRef.current);
+    pageRef.current = clamped;
+    setPage(clamped);
+    savePos(entry.id, chapterPath, clamped, totalRef.current);
+  }
+
+  // ── Fetch chapter ──────────────────────────────────────────────────────────
+
   useEffect(() => {
     let cancelled = false;
     setSrcdoc(null);
     setError(null);
     setLoading(true);
+    syncState(0, 1, 0, false);
 
     window.bookray
       .getChapterContent(entry.filePath, chapterPath)
@@ -200,31 +395,48 @@ export default function ChapterRenderer({ entry, chapterPath }: Props) {
         if (cancelled) return;
         setError(err instanceof Error ? err.message : String(err));
       })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
+      .finally(() => { if (!cancelled) setLoading(false); });
 
-    return () => {
-      cancelled = true;
-    };
-    // settings intentionally excluded — theme changes are applied via
-    // contentDocument injection (see effect below) without re-fetching.
+    return () => { cancelled = true; };
+    // settings excluded — theme changes go through contentDocument injection below
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entry.filePath, chapterPath]);
 
-  // Live theme injection: update the #bookray-theme <style> tag in the already-
-  // loaded iframe instead of reloading srcdoc. This works because
-  // sandbox="allow-same-origin" preserves the parent's origin for the iframe,
-  // so the parent can access iframe.contentDocument.
+  // ── Init pagination after iframe loads ────────────────────────────────────
+
   useEffect(() => {
     const iframe = iframeRef.current;
-    if (!iframe || !srcdoc) return;
+    if (!iframe || srcdoc === null) return;
+
+    function onLoad() {
+      // rAF ensures the browser has painted and columns are fully laid out
+      requestAnimationFrame(() => initPagination());
+    }
+
+    if (iframe.contentDocument?.readyState === 'complete') {
+      requestAnimationFrame(() => initPagination());
+    } else {
+      iframe.addEventListener('load', onLoad, { once: true });
+      return () => iframe.removeEventListener('load', onLoad);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [srcdoc]);
+
+  // ── Live theme injection ───────────────────────────────────────────────────
+
+  useEffect(() => {
+    const iframe = iframeRef.current;
+    if (!iframe || srcdoc === null) return;
 
     function inject() {
       const doc = iframe!.contentDocument;
       if (!doc) return;
       const el = doc.getElementById('bookray-theme') as HTMLStyleElement | null;
-      if (el) el.textContent = buildThemeCSS(settings);
+      if (el) {
+        el.textContent = buildThemeCSS(settings);
+        // Font size/line-height changes alter column count — recheck after reflow
+        requestAnimationFrame(() => recheckPages());
+      }
     }
 
     if (iframe.contentDocument?.readyState === 'complete') {
@@ -232,7 +444,98 @@ export default function ChapterRenderer({ entry, chapterPath }: Props) {
     } else {
       iframe.addEventListener('load', inject, { once: true });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settings, srcdoc]);
+
+  // ── ResizeObserver ─────────────────────────────────────────────────────────
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    let timer: ReturnType<typeof setTimeout>;
+    const ro = new ResizeObserver(() => {
+      clearTimeout(timer);
+      timer = setTimeout(() => recheckPages(), 120);
+    });
+    ro.observe(container);
+    return () => { clearTimeout(timer); ro.disconnect(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ── Keyboard navigation ────────────────────────────────────────────────────
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.target as Element)?.closest('input, textarea')) return;
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        goToPage(pageRef.current + 1);
+      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        goToPage(pageRef.current - 1);
+      }
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ── Swipe / drag handlers ──────────────────────────────────────────────────
+  //
+  // A full-width overlay intercepts all pointer events so we get swipe gestures
+  // even when the pointer is over the iframe. setPointerCapture keeps tracking
+  // the pointer even if it leaves the element mid-drag.
+  //
+  // During drag, we disable the body transition and move it live with the finger.
+  // On release, we re-enable the transition and snap to the nearest page.
+  //
+  // Short taps (< 8px travel) are treated as navigation clicks:
+  //   left half → previous, right half → next.
+
+  function onOverlayPointerDown(e: React.PointerEvent<HTMLDivElement>) {
+    (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId);
+    dragStartX.current = e.clientX;
+  }
+
+  function onOverlayPointerMove(e: React.PointerEvent<HTMLDivElement>) {
+    if (dragStartX.current === null) return;
+    const delta = e.clientX - dragStartX.current;
+    const body = iframeRef.current?.contentDocument?.body;
+    if (!body) return;
+    body.style.transition = 'none';
+    body.style.transform = `translateX(${-pageRef.current * stepWidthRef.current + delta}px)`;
+  }
+
+  function onOverlayPointerUp(e: React.PointerEvent<HTMLDivElement>) {
+    if (dragStartX.current === null) return;
+    const delta = e.clientX - dragStartX.current;
+    dragStartX.current = null;
+
+    const body = iframeRef.current?.contentDocument?.body;
+    if (body) body.style.transition = ''; // restore CSS transition
+
+    if (Math.abs(delta) < 8) {
+      const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
+      if (e.clientX < rect.left + rect.width / 2) goToPage(pageRef.current - 1);
+      else goToPage(pageRef.current + 1);
+    } else if (delta < -40) {
+      goToPage(pageRef.current + 1);
+    } else if (delta > 40) {
+      goToPage(pageRef.current - 1);
+    } else {
+      // Insufficient swipe — snap back to current page
+      goToPage(pageRef.current);
+    }
+  }
+
+  function onOverlayPointerCancel() {
+    dragStartX.current = null;
+    const body = iframeRef.current?.contentDocument?.body;
+    if (body) body.style.transition = '';
+    goToPage(pageRef.current);
+  }
+
+  // ── Settings ───────────────────────────────────────────────────────────────
 
   function adjustFontSize(delta: number) {
     setSettings((s) => ({ ...s, fontSize: Math.max(12, Math.min(28, s.fontSize + delta)) }));
@@ -245,14 +548,13 @@ export default function ChapterRenderer({ entry, chapterPath }: Props) {
     }));
   }
 
+  // ── Render ─────────────────────────────────────────────────────────────────
+
   return (
     <div className="flex flex-col h-full min-h-0">
-      <ReaderControls
-        settings={settings}
-        onFontSize={adjustFontSize}
-        onLineHeight={adjustLineHeight}
-      />
-      <div className="relative flex-1 min-h-0">
+      <ReaderControls settings={settings} onFontSize={adjustFontSize} onLineHeight={adjustLineHeight} />
+
+      <div ref={containerRef} className="relative flex-1 min-h-0 overflow-hidden">
         {loading && (
           <div className="absolute inset-0 flex items-center justify-center bg-slate-950 z-10">
             <p className="text-slate-500 text-sm">Loading chapter…</p>
@@ -264,19 +566,41 @@ export default function ChapterRenderer({ entry, chapterPath }: Props) {
           </div>
         )}
         {srcdoc !== null && (
-          // Security: sandbox without allow-scripts → no JS runs in the iframe.
-          // allow-same-origin is the only token present; it does NOT allow scripts —
-          // it only preserves the parent origin so this component can reach into
-          // iframe.contentDocument to update the theme style element live.
-          <iframe
-            ref={iframeRef}
-            srcDoc={srcdoc}
-            sandbox="allow-same-origin"
-            className="w-full h-full border-none bg-slate-950"
-            title="Chapter content"
-          />
+          <>
+            {/* Security: sandbox without allow-scripts — no JS runs inside.
+                allow-same-origin lets the parent access contentDocument for
+                live theme injection and pagination. */}
+            <iframe
+              ref={iframeRef}
+              srcDoc={srcdoc}
+              sandbox="allow-same-origin"
+              className="absolute inset-0 w-full h-full border-none bg-slate-950"
+              title="Chapter content"
+            />
+            {/* Overlay captures all pointer events for swipe/tap navigation.
+                This intentionally prevents clicks reaching the iframe — internal
+                EPUB links are disabled (external hrefs stripped), and chapter
+                navigation is handled via ChapterList in the sidebar. */}
+            <div
+              className="absolute inset-0 z-10 cursor-pointer"
+              onPointerDown={onOverlayPointerDown}
+              onPointerMove={onOverlayPointerMove}
+              onPointerUp={onOverlayPointerUp}
+              onPointerCancel={onOverlayPointerCancel}
+            />
+          </>
         )}
       </div>
+
+      {srcdoc !== null && (
+        <PaginationBar
+          page={page}
+          total={totalPages}
+          twoPage={twoPage}
+          onPrev={() => goToPage(pageRef.current - 1)}
+          onNext={() => goToPage(pageRef.current + 1)}
+        />
+      )}
     </div>
   );
 }
