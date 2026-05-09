@@ -44,23 +44,33 @@ function loadPos(bookId: string, chapterPath: string, total: number): number {
 
 // ── Pagination math ──────────────────────────────────────────────────────────
 //
-// With CSS `column-width: Xpx` on <body>, the browser lays content into as many
-// X-wide columns as needed. body.scrollWidth equals the total column count × X.
-// We translate the body left by pageIndex * stepWidth to reveal each page.
+// We use a dedicated #bookray-col div as the CSS multicol container rather than
+// <body>. This is critical: Blink only reports scrollWidth > clientWidth when the
+// element's overflow is NOT hidden. Body must stay overflow:hidden to act as the
+// clip layer; the inner #bookray-col has overflow:visible so its scrollWidth
+// correctly reflects the total width of all column boxes.
 //
-// The +0.5 epsilon before rounding guards against sub-pixel scrollWidth values
-// (e.g. 799.8 rounding down to 0 pages when it should be 1).
+//   totalPages = round(col.scrollWidth / stepWidth)
+//
+// Reading scrollWidth forces a synchronous reflow, so the CSS var update for
+// column-width is always reflected before the measurement.
+//
+// The +0.5 epsilon guards against sub-pixel rounding (e.g. 899.8 → 1 not 0).
+
+function getColEl(iframe: HTMLIFrameElement): HTMLElement | null {
+  return (iframe.contentDocument?.getElementById('bookray-col') as HTMLElement) ?? null;
+}
 
 function measureTotalPages(iframe: HTMLIFrameElement, stepWidth: number): number {
-  const body = iframe.contentDocument?.body;
-  if (!body || stepWidth === 0) return 1;
-  return Math.max(1, Math.round((body.scrollWidth + 0.5) / stepWidth));
+  const col = getColEl(iframe);
+  if (!col || stepWidth === 0) return 1;
+  return Math.max(1, Math.round((col.scrollWidth + 0.5) / stepWidth));
 }
 
 function applyPage(iframe: HTMLIFrameElement, page: number, stepWidth: number) {
-  const body = iframe.contentDocument?.body;
-  if (!body) return;
-  body.style.transform = `translateX(${-page * stepWidth}px)`;
+  const col = getColEl(iframe);
+  if (!col) return;
+  col.style.transform = `translateX(${-page * stepWidth}px)`;
 }
 
 // ── Layout helper ────────────────────────────────────────────────────────────
@@ -96,9 +106,16 @@ function buildPagerCSS(): string {
       max-width: none !important;
       margin: 0 !important;
       padding: 0 !important;
-      column-width: var(--br-pw, 800px) !important;
-      column-gap: 0 !important;
-      column-fill: auto !important;
+    }
+    /* #bookray-col is the multicol container. overflow:visible is required so
+       that scrollWidth reports the FULL column extent (Blink returns clientWidth
+       when overflow is hidden, making totalPages always 1). Body clips it. */
+    #bookray-col {
+      height: 100%;
+      overflow: visible;
+      column-width: var(--br-pw, 800px);
+      column-gap: 0;
+      column-fill: auto;
       will-change: transform;
       transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
     }
@@ -192,12 +209,15 @@ function buildSrcdoc(
   // 4. Remove external link hrefs
   html = html.replace(/\bhref=(["'])(https?:\/\/[^"']*)\1/gi, '');
 
-  // 5. Wrap body content for per-column padding.
-  //    Greedy [\s\S]* matches from the first <body> tag to the last </body>,
-  //    which is correct for valid XHTML.
+  // 5. Wrap body content.
+  //    #bookray-col is the multicol container (overflow:visible so scrollWidth
+  //    reports total column extent). #bookray-pg is the inner padding wrapper
+  //    (padding on the multicol container itself would shrink column boxes and
+  //    break the stepWidth math, so it lives one level deeper).
   html = html.replace(
     /(<body(?:\s[^>]*)?>)([\s\S]*)(<\/body>)/i,
-    (_, open, inner, close) => `${open}<div id="bookray-pg">${inner}</div>${close}`,
+    (_, open, inner, close) =>
+      `${open}<div id="bookray-col"><div id="bookray-pg">${inner}</div></div>${close}`,
   );
 
   // 6. Inject styles — pager first so theme can override if needed
@@ -500,10 +520,10 @@ export default function ChapterRenderer({ entry, chapterPath }: Props) {
   function onOverlayPointerMove(e: React.PointerEvent<HTMLDivElement>) {
     if (dragStartX.current === null) return;
     const delta = e.clientX - dragStartX.current;
-    const body = iframeRef.current?.contentDocument?.body;
-    if (!body) return;
-    body.style.transition = 'none';
-    body.style.transform = `translateX(${-pageRef.current * stepWidthRef.current + delta}px)`;
+    const col = iframeRef.current ? getColEl(iframeRef.current) : null;
+    if (!col) return;
+    col.style.transition = 'none';
+    col.style.transform = `translateX(${-pageRef.current * stepWidthRef.current + delta}px)`;
   }
 
   function onOverlayPointerUp(e: React.PointerEvent<HTMLDivElement>) {
@@ -511,8 +531,8 @@ export default function ChapterRenderer({ entry, chapterPath }: Props) {
     const delta = e.clientX - dragStartX.current;
     dragStartX.current = null;
 
-    const body = iframeRef.current?.contentDocument?.body;
-    if (body) body.style.transition = ''; // restore CSS transition
+    const col = iframeRef.current ? getColEl(iframeRef.current) : null;
+    if (col) col.style.transition = ''; // restore CSS transition
 
     if (Math.abs(delta) < 8) {
       const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
@@ -523,15 +543,14 @@ export default function ChapterRenderer({ entry, chapterPath }: Props) {
     } else if (delta > 40) {
       goToPage(pageRef.current - 1);
     } else {
-      // Insufficient swipe — snap back to current page
       goToPage(pageRef.current);
     }
   }
 
   function onOverlayPointerCancel() {
     dragStartX.current = null;
-    const body = iframeRef.current?.contentDocument?.body;
-    if (body) body.style.transition = '';
+    const col = iframeRef.current ? getColEl(iframeRef.current) : null;
+    if (col) col.style.transition = '';
     goToPage(pageRef.current);
   }
 
