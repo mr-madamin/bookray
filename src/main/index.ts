@@ -1,6 +1,7 @@
-import { app, BrowserWindow, session } from 'electron';
+import { app, BrowserWindow } from 'electron';
 import { join } from 'node:path';
 import { setupIPC } from './ipc';
+import { setupCSP } from './scp';
 
 const isDev = !app.isPackaged;
 
@@ -22,35 +23,6 @@ function createWindow() {
   } else {
     win.loadFile(join(__dirname, '../renderer/index.html'));
   }
-}
-
-function setupCSP() {
-  const cspDev = [
-    "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
-    "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: blob:",
-    "font-src 'self' data:",
-    "connect-src 'self' http://localhost:5173 ws://localhost:5173",
-  ].join('; ');
-
-  const cspProd = [
-    "default-src 'self'",
-    "script-src 'self'",
-    "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: blob:",
-    "font-src 'self' data:",
-    "connect-src 'self'",
-  ].join('; ');
-
-  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
-    callback({
-      responseHeaders: {
-        ...details.responseHeaders,
-        'Content-Security-Policy': [isDev ? cspDev : cspProd],
-      },
-    });
-  });
 }
 
 app.whenReady().then(() => {
