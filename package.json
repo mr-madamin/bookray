@@ -13,17 +13,22 @@
     "build:preload": "tsc -p src/preload",
     "build:renderer": "vite build",
     "build": "npm run build:main && npm run build:preload && npm run build:renderer",
+    "rebuild": "electron-rebuild -f -w better-sqlite3",
+    "db:reset": "node scripts/db-reset.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
   "dependencies": {
     "@xmldom/xmldom": "^0.9.10",
+    "better-sqlite3": "^12.9.0",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
     "zustand": "^5.0.12"
   },
   "devDependencies": {
+    "@electron/rebuild": "^4.0.4",
     "@tailwindcss/vite": "^4.2.4",
+    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^25.6.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",

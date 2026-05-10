@@ -2,6 +2,7 @@ import { app, BrowserWindow } from 'electron';
 import { join } from 'node:path';
 import { setupIPC } from './ipc';
 import { setupCSP } from './scp';
+import { getDb } from './db/database.ts';
 
 const isDev = !app.isPackaged;
 
@@ -26,6 +27,7 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  getDb(); // open + migrate before any IPC handler can run
   setupCSP();
   setupIPC();
   createWindow();
