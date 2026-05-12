@@ -1,5 +1,5 @@
-import { readFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { readFile, readdir } from 'node:fs/promises';
+import { join, extname } from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
 import { ipcMain, dialog, app } from 'electron';
 
@@ -13,6 +13,7 @@ import { collectChapterAssets } from './utils/asset_extraction.ts';
 import { getDb } from './db/database.ts';
 import * as booksRepo from './db/repositories/books.ts';
 import * as progressRepo from './db/repositories/progress.ts';
+import * as audioRepo from './db/repositories/audio.ts';
 
 // ── ZIP cache ────────────────────────────────────────────────────────────────
 // Keyed by file path. Populated lazily on first access, shared between handlers.
@@ -123,6 +124,47 @@ export function setupIPC() {
     IPC.PROGRESS_SET,
     (_event, bookId: string, chapterPath: string, pageFraction: number) => {
       progressRepo.setProgress(getDb(), bookId, chapterPath, pageFraction);
+    },
+  );
+
+  // ── Audio ──────────────────────────────────────────────────────────────────
+
+  ipcMain.handle(IPC.AUDIO_GET_TRACKS, (_event, bookId: string) => {
+    return audioRepo.getTracks(getDb(), bookId);
+  });
+
+  // Opens a directory picker, copies every audio file found to
+  // userData/audio/<bookId>/, inserts rows, and returns AudioTrack[].
+  ipcMain.handle(IPC.AUDIO_IMPORT_FOLDER, async (_event, bookId: string) => {
+    const { canceled, filePaths } = await dialog.showOpenDialog({
+      properties: ['openDirectory'],
+      title: 'Select audiobook folder',
+    });
+    if (canceled || filePaths.length === 0) return [];
+
+    const folderPath = filePaths[0];
+    const entries = await readdir(folderPath, { withFileTypes: true });
+
+    const audioFiles = entries
+      .filter(
+        (e) =>
+          e.isFile() &&
+          audioRepo.AUDIO_EXTENSIONS.has(extname(e.name).toLowerCase()),
+      )
+      .map((e) => join(folderPath, e.name))
+      // Natural sort: "02 - Chapter.mp3" before "10 - Chapter.mp3"
+      .sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+
+    if (audioFiles.length === 0) return [];
+
+    const audioBaseDir = join(app.getPath('userData'), 'audio');
+    return audioRepo.importTracks(getDb(), bookId, audioBaseDir, audioFiles);
+  });
+
+  ipcMain.handle(
+    IPC.AUDIO_UPDATE_DURATION,
+    (_event, trackId: string, duration: number) => {
+      audioRepo.updateDuration(getDb(), trackId, duration);
     },
   );
 }

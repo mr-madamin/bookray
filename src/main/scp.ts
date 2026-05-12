@@ -10,6 +10,7 @@ export function setupCSP() {
     "img-src 'self' data: blob:",
     "font-src 'self' data:",
     "connect-src 'self' http://localhost:5173 ws://localhost:5173",
+    "media-src bookray:",
   ].join('; ');
 
   const cspProd = [
@@ -19,6 +20,7 @@ export function setupCSP() {
     "img-src 'self' data: blob:",
     "font-src 'self' data:",
     "connect-src 'self'",
+    "media-src bookray:",
   ].join('; ');
 
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {

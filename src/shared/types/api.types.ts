@@ -18,6 +18,17 @@ export interface ProgressRecord {
   pageFraction: number;
 }
 
+export interface AudioTrack {
+  id: string;
+  bookId: string;
+  /** bookray:// URL served by the Electron protocol handler. */
+  url: string;
+  trackIndex: number;
+  title: string | null;
+  /** Duration in seconds; null until the track has been played at least once. */
+  duration: number | null;
+}
+
 export interface ChapterContent {
   /** Raw XHTML from the ZIP. Assets not yet inlined — the renderer handles that. */
   xhtml: string;
@@ -38,6 +49,9 @@ export interface BookrayAPI {
   getChapterContent: (filePath: string, chapterPath: string) => Promise<ChapterContent>;
   progressGet: (bookId: string) => Promise<ProgressRecord | null>;
   progressSet: (bookId: string, chapterPath: string, pageFraction: number) => Promise<void>;
+  audioGetTracks: (bookId: string) => Promise<AudioTrack[]>;
+  audioImportFolder: (bookId: string) => Promise<AudioTrack[]>;
+  audioUpdateDuration: (trackId: string, duration: number) => Promise<void>;
   getFilePath: (file: File) => string;
 }
 
