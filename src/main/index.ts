@@ -58,8 +58,9 @@ app.whenReady().then(() => {
   // Web Audio API (createMediaElementSource) can access them cross-origin.
   protocol.handle('bookray', async (request) => {
     const url = new URL(request.url);
-    // pathname starts with '/', e.g. '/audio/bookId/track.mp3'
-    const relPath = url.pathname.slice(1);
+    // bookray://audio/<bookId>/<file> → hostname='audio', pathname='/<bookId>/<file>'
+    // Reconstruct: 'audio' + '/<bookId>/<file>' = rel_path stored in DB
+    const relPath = url.hostname + url.pathname;
     const fullPath = join(app.getPath('userData'), relPath);
     const fileUrl = pathToFileURL(fullPath).toString();
 

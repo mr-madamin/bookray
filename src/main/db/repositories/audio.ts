@@ -21,7 +21,7 @@ function rowToTrack(row: AudioRow): AudioTrack {
     id: row.id,
     bookId: row.book_id,
     // rel_path is relative to userData, served via the bookray:// scheme
-    url: `bookray:///${row.rel_path}`,
+    url: `bookray://${row.rel_path}`,
     trackIndex: row.track_index,
     title: row.title,
     duration: row.duration,
@@ -87,7 +87,7 @@ export async function importTracks(
   return records.map((r) => ({
     id: r.id,
     bookId: r.bookId,
-    url: `bookray:///${r.relPath}`,
+    url: `bookray://${r.relPath}`,
     trackIndex: r.trackIndex,
     title: r.title,
     duration: null,
