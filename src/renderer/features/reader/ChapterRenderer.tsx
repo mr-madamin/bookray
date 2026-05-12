@@ -15,31 +15,16 @@ const TWO_PAGE_MIN_WIDTH = 900;
 
 // ── Position persistence ─────────────────────────────────────────────────────
 //
-// We persist a 0–1 fraction rather than a raw page index so that the position
-// survives font-size and window-size changes. On restore, we multiply by the
-// new page count and round.
-
-function posKey(bookId: string, chapterPath: string) {
-  return `br-pos:${bookId}:${chapterPath}`;
-}
+// Progress is stored in SQLite via IPC (progressGet / progressSet). We persist
+// a 0–1 fraction so the position survives font-size and window-size changes.
+// The fraction is fetched in parallel with chapter content and stored in
+// pendingFractionRef so initPagination can use it synchronously after rAF.
 
 function savePos(bookId: string, chapterPath: string, page: number, total: number) {
   if (total <= 1) return;
-  try {
-    localStorage.setItem(posKey(bookId, chapterPath), String(page / total));
-  } catch { /* private mode or storage full */ }
-}
-
-function loadPos(bookId: string, chapterPath: string, total: number): number {
-  try {
-    const raw = localStorage.getItem(posKey(bookId, chapterPath));
-    if (!raw) return 0;
-    const frac = parseFloat(raw);
-    if (!isFinite(frac)) return 0;
-    return Math.min(total - 1, Math.max(0, Math.round(frac * total)));
-  } catch {
-    return 0;
-  }
+  const fraction = page / total;
+  // Fire-and-forget — navigation must not wait on the DB write.
+  void window.bookray.progressSet(bookId, chapterPath, fraction);
 }
 
 // ── Pagination math ──────────────────────────────────────────────────────────
@@ -332,6 +317,9 @@ export default function ChapterRenderer({ entry, chapterPath }: Props) {
   // Drag tracking for swipe gestures
   const dragStartX = useRef<number | null>(null);
 
+  // Progress fetched from DB in parallel with chapter content; consumed once by initPagination.
+  const pendingFractionRef = useRef<number | null>(null);
+
   // ── Layout ─────────────────────────────────────────────────────────────────
 
   function currentLayout() {
@@ -363,7 +351,12 @@ export default function ChapterRenderer({ entry, chapterPath }: Props) {
     doc.documentElement.style.setProperty('--br-pw', `${columnWidth}px`);
 
     const total = measureTotalPages(iframe!, stepWidth);
-    const restored = loadPos(entry.id, chapterPath, total);
+
+    const frac = pendingFractionRef.current;
+    pendingFractionRef.current = null;
+    const restored = frac !== null
+      ? Math.min(total - 1, Math.max(0, Math.round(frac * total)))
+      : 0;
 
     syncState(restored, total, stepWidth, tp);
     applyPage(iframe!, restored, stepWidth);
@@ -405,10 +398,15 @@ export default function ChapterRenderer({ entry, chapterPath }: Props) {
     setLoading(true);
     syncState(0, 1, 0, false);
 
-    window.bookray
-      .getChapterContent(entry.filePath, chapterPath)
-      .then(({ xhtml, assets, stylesheets }) => {
+    Promise.all([
+      window.bookray.getChapterContent(entry.filePath, chapterPath),
+      window.bookray.progressGet(entry.id),
+    ])
+      .then(([{ xhtml, assets, stylesheets }, progress]) => {
         if (cancelled) return;
+        // Store fraction for initPagination to consume after the iframe loads.
+        pendingFractionRef.current =
+          progress?.chapterPath === chapterPath ? progress.pageFraction : null;
         setSrcdoc(buildSrcdoc(xhtml, assets, stylesheets, chapterPath, settings));
       })
       .catch((err: unknown) => {

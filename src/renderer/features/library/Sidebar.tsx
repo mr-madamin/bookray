@@ -45,10 +45,10 @@ export default function Sidebar() {
     setError(null);
     setLoading(true);
     try {
-      const filePath = await window.bookray.openFile();
-      if (!filePath) return;
-      const book = await window.bookray.loadEpub(filePath);
-      addBook(filePath, book);
+      const originalPath = await window.bookray.openFile();
+      if (!originalPath) return;
+      const entry = await window.bookray.importBook(originalPath);
+      addBook(entry);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to open book');
     } finally {

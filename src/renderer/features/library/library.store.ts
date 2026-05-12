@@ -1,17 +1,16 @@
 import { create } from 'zustand';
-import type { SerializedEpubBook } from '@shared/types';
+import type { LibraryEntry } from '@shared/types';
 
-export interface LibraryBook {
-  id: string;
-  filePath: string;
-  book: SerializedEpubBook;
-}
+// LibraryBook is the renderer-side alias for the shared LibraryEntry type.
+// Components import LibraryBook from here for historical reasons; the shape is identical.
+export type LibraryBook = LibraryEntry;
 
 interface LibraryState {
   books: LibraryBook[];
   selectedId: string | null;
   selectedChapterPath: string | null;
-  addBook: (filePath: string, book: SerializedEpubBook) => void;
+  loadBooks: (entries: LibraryBook[]) => void;
+  addBook: (entry: LibraryBook) => void;
   selectBook: (id: string) => void;
   selectChapter: (path: string | null) => void;
 }
@@ -21,22 +20,22 @@ export const useLibraryStore = create<LibraryState>((set) => ({
   selectedId: null,
   selectedChapterPath: null,
 
-  addBook: (filePath, book) => {
-    const id = filePath;
+  // Called once on startup with the full persisted library.
+  loadBooks: (entries) => set({ books: entries }),
+
+  addBook: (entry) =>
     set((state) => {
-      if (state.books.some((b) => b.id === id)) {
-        return { selectedId: id, selectedChapterPath: null };
+      if (state.books.some((b) => b.id === entry.id)) {
+        // Already in library (e.g. duplicate import): just select it.
+        return { selectedId: entry.id, selectedChapterPath: null };
       }
       return {
-        books: [...state.books, { id, filePath, book }],
-        selectedId: id,
+        books: [entry, ...state.books],
+        selectedId: entry.id,
         selectedChapterPath: null,
       };
-    });
-  },
+    }),
 
-  // Switching books resets the chapter view back to the cover/metadata.
   selectBook: (id) => set({ selectedId: id, selectedChapterPath: null }),
-
   selectChapter: (path) => set({ selectedChapterPath: path }),
 }));

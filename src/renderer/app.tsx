@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useLibraryStore } from './features/library/library.store';
 import Sidebar from './features/library/Sidebar';
 import BookHeader from './features/reader/BookHeader';
@@ -82,9 +82,15 @@ export default function App() {
   const selectedId = useLibraryStore((s) => s.selectedId);
   const selectedChapterPath = useLibraryStore((s) => s.selectedChapterPath);
   const addBook = useLibraryStore((s) => s.addBook);
+  const loadBooks = useLibraryStore((s) => s.loadBooks);
   const selectedBook = books.find((b) => b.id === selectedId) ?? null;
 
   const showReader = selectedBook !== null && selectedChapterPath !== null;
+
+  // Restore library from DB on first mount.
+  useEffect(() => {
+    window.bookray.loadLibrary().then(loadBooks);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [isDragging, setIsDragging] = useState(false);
 
@@ -108,9 +114,9 @@ export default function App() {
       f.name.toLowerCase().endsWith('.epub'),
     );
     if (!epubFiles.length) return;
-    const filePath = window.bookray.getFilePath(epubFiles[0]);
-    const book = await window.bookray.loadEpub(filePath);
-    addBook(filePath, book);
+    const originalPath = window.bookray.getFilePath(epubFiles[0]);
+    const entry = await window.bookray.importBook(originalPath);
+    addBook(entry);
   }
 
   return (

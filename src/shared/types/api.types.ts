@@ -6,6 +6,18 @@ export interface SerializedEpubBook extends Omit<EpubBook, 'manifest'> {
   coverDataUrl?: string;
 }
 
+// A book in the persisted library. Also used as the renderer's LibraryBook.
+export interface LibraryEntry {
+  id: string;
+  filePath: string;
+  book: SerializedEpubBook;
+}
+
+export interface ProgressRecord {
+  chapterPath: string;
+  pageFraction: number;
+}
+
 export interface ChapterContent {
   /** Raw XHTML from the ZIP. Assets not yet inlined — the renderer handles that. */
   xhtml: string;
@@ -21,8 +33,11 @@ export interface ChapterContent {
 
 export interface BookrayAPI {
   openFile: () => Promise<string | null>;
-  loadEpub: (filePath: string) => Promise<SerializedEpubBook>;
+  importBook: (originalPath: string) => Promise<LibraryEntry>;
+  loadLibrary: () => Promise<LibraryEntry[]>;
   getChapterContent: (filePath: string, chapterPath: string) => Promise<ChapterContent>;
+  progressGet: (bookId: string) => Promise<ProgressRecord | null>;
+  progressSet: (bookId: string, chapterPath: string, pageFraction: number) => Promise<void>;
   getFilePath: (file: File) => string;
 }
 

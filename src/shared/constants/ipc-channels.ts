@@ -1,5 +1,8 @@
 export const IPC = {
-  OPEN_FILE: 'bookray:open-file',
-  LOAD_EPUB: 'bookray:load-epub',
+  OPEN_FILE:           'bookray:open-file',
+  IMPORT_BOOK:         'bookray:import-book',
+  LOAD_LIBRARY:        'bookray:load-library',
   GET_CHAPTER_CONTENT: 'bookray:get-chapter-content',
+  PROGRESS_GET:        'bookray:progress-get',
+  PROGRESS_SET:        'bookray:progress-set',
 } as const;
