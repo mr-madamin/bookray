@@ -3,7 +3,7 @@
 // user_version (SQLite PRAGMA) tracks how many have been applied.
 
 export const MIGRATIONS: string[] = [
-  // v0 → v1: initial schema
+  // v0 → v1: initial schema (books + reading progress + bookmarks)
   `
   CREATE TABLE IF NOT EXISTS books (
     id              TEXT    PRIMARY KEY,
@@ -33,5 +33,21 @@ export const MIGRATIONS: string[] = [
   );
 
   CREATE INDEX IF NOT EXISTS idx_bookmarks_book_id ON bookmarks(book_id);
+  `,
+
+  // v1 → v2: audio tracks
+  `
+  CREATE TABLE IF NOT EXISTS audio_tracks (
+    id          TEXT    PRIMARY KEY,
+    book_id     TEXT    NOT NULL REFERENCES books(id) ON DELETE CASCADE,
+    rel_path    TEXT    NOT NULL UNIQUE,
+    track_index INTEGER NOT NULL,
+    title       TEXT,
+    duration    REAL,
+    added_at    INTEGER NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_audio_tracks_book
+    ON audio_tracks (book_id, track_index);
   `,
 ];
