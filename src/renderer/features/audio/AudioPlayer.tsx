@@ -159,8 +159,8 @@ export default function AudioPlayer() {
             onClick={toggle}
             disabled={tracks.length === 0}
             className="w-9 h-9 rounded-full bg-white text-slate-900 flex items-center justify-center
-                       hover:bg-slate-100 active:scale-95 transition-transform disabled:opacity-30
-                       disabled:cursor-not-allowed"
+                       hover:bg-slate-100 active:scale-95 transition-transform cursor-pointer
+                       disabled:opacity-30 disabled:cursor-not-allowed"
             title={isPlaying ? 'Pause' : 'Play'}
           >
             {isPlaying ? <PauseIcon /> : <PlayIcon />}

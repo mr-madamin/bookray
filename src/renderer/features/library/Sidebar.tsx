@@ -123,7 +123,7 @@ export default function Sidebar() {
               <button
                 key={t}
                 onClick={() => setTab(t)}
-                className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-colors capitalize ${
+                className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-colors capitalize cursor-pointer ${
                   tab === t
                     ? 'bg-slate-700 text-slate-200'
                     : 'text-slate-500 hover:text-slate-300'
