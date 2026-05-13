@@ -177,7 +177,7 @@ export default function AudioPlayer() {
           </button>
 
           <button
-            onClick={nextTrack}
+            onClick={() => nextTrack()}
             disabled={tracks.length === 0}
             className={iconBtn}
             title="Next track"

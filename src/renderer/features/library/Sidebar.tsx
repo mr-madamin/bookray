@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useLibraryStore } from './library.store';
 import { useAudioStore } from '../audio/audio.store';
 import BookListItem from './BookListItem';
-import ChapterList from '../reader/ChapterList';
+import ChapterList, { countChapters } from '../reader/ChapterList';
 import TrackList from '../audio/TrackList';
 
 function Logo() {
@@ -129,7 +129,9 @@ export default function Sidebar() {
                     : 'text-slate-500 hover:text-slate-300'
                 }`}
               >
-                {t === 'audio' && hasAudio ? `Audio (${tracks.length})` : t === 'audio' ? 'Audio' : 'Text'}
+                {t === 'text'
+  ? `Text (${countChapters(selectedBook.book)})`
+  : hasAudio ? `Audio (${tracks.length})` : 'Audio'}
               </button>
             ))}
           </div>

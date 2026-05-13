@@ -22,6 +22,10 @@ function flattenToc(
   return out;
 }
 
+export function countChapters(book: SerializedEpubBook): number {
+  return buildEntries(book).length;
+}
+
 function buildEntries(book: SerializedEpubBook): ChapterEntry[] {
   if (book.toc.length > 0) {
     return flattenToc(book.toc);
