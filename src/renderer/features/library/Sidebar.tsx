@@ -3,6 +3,7 @@ import { useLibraryStore } from './library.store';
 import { useAudioStore } from '../audio/audio.store';
 import BookListItem from './BookListItem';
 import ChapterList from '../reader/ChapterList';
+import TrackList from '../audio/TrackList';
 
 function Logo() {
   return (
@@ -42,6 +43,7 @@ export default function Sidebar() {
   const setTracks = useAudioStore((s) => s.setTracks);
   const hasAudio  = tracks.length > 0;
 
+  const [tab, setTab]                   = useState<'text' | 'audio'>('text');
   const [loading, setLoading]           = useState(false);
   const [audioLoading, setAudioLoading] = useState(false);
   const [error, setError]               = useState<string | null>(null);
@@ -68,7 +70,10 @@ export default function Sidebar() {
     setAudioLoading(true);
     try {
       const newTracks = await window.bookray.audioImportFolder(selectedId);
-      if (newTracks.length > 0) setTracks([...tracks, ...newTracks]);
+      if (newTracks.length > 0) {
+        setTracks([...tracks, ...newTracks]);
+        setTab('audio');
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to import audio');
     } finally {
@@ -108,67 +113,86 @@ export default function Sidebar() {
         </div>
       </div>
 
-      {/* ── Audio import (when a book is selected) ── */}
-      {selectedBook && (
-        <div className="shrink-0 px-3 py-2 border-t border-slate-800">
-          {hasAudio ? (
-            <div className="flex items-center gap-2 px-1">
-              {/* Waveform icon */}
-              <svg viewBox="0 0 20 20" fill="none" className="w-3.5 h-3.5 text-blue-400 shrink-0">
-                <rect x="1"  y="7" width="2" height="6" rx="1" fill="currentColor" />
-                <rect x="5"  y="4" width="2" height="12" rx="1" fill="currentColor" />
-                <rect x="9"  y="2" width="2" height="16" rx="1" fill="currentColor" />
-                <rect x="13" y="5" width="2" height="10" rx="1" fill="currentColor" />
-                <rect x="17" y="8" width="2" height="4"  rx="1" fill="currentColor" />
-              </svg>
-              <span className="text-xs text-blue-400 font-medium">
-                {tracks.length} audio track{tracks.length !== 1 ? 's' : ''}
-              </span>
-              <button
-                onClick={handleImportAudio}
-                disabled={audioLoading}
-                className="ml-auto text-xs text-slate-500 hover:text-slate-300 transition-colors disabled:opacity-50"
-                title="Add more audio tracks"
-              >
-                + Add
-              </button>
-            </div>
-          ) : (
-            <button
-              onClick={handleImportAudio}
-              disabled={audioLoading}
-              className="w-full flex items-center justify-center gap-2 px-3 py-1.5 rounded-lg
-                         border border-dashed border-slate-700 text-slate-500 hover:border-slate-500
-                         hover:text-slate-300 transition-colors text-xs disabled:opacity-50
-                         disabled:cursor-not-allowed"
-            >
-              {audioLoading ? (
-                'Importing…'
-              ) : (
-                <>
-                  <svg viewBox="0 0 16 16" fill="none" className="w-3.5 h-3.5">
-                    <path d="M8 3v7m0 0-2.5-2.5M8 10l2.5-2.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                    <path d="M3 12.5h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                  </svg>
-                  Import Audiobook Folder
-                </>
-              )}
-            </button>
-          )}
-        </div>
-      )}
-
-      {/* ── Chapter list ── */}
+      {/* ── Tabbed contents (when a book is selected) ── */}
       {selectedBook && (
         <div className="flex flex-col flex-1 min-h-0 border-t border-slate-800">
-          <SectionLabel>Contents</SectionLabel>
-          <div className="flex-1 overflow-y-auto px-2 pb-4">
-            <ChapterList
-              book={selectedBook.book}
-              selectedPath={selectedChapterPath}
-              onSelect={selectChapter}
-            />
+
+          {/* Tab bar */}
+          <div className="flex shrink-0 gap-1 px-3 pt-2 pb-1">
+            {(['text', 'audio'] as const).map((t) => (
+              <button
+                key={t}
+                onClick={() => setTab(t)}
+                className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-colors capitalize ${
+                  tab === t
+                    ? 'bg-slate-700 text-slate-200'
+                    : 'text-slate-500 hover:text-slate-300'
+                }`}
+              >
+                {t === 'audio' && hasAudio ? `Audio (${tracks.length})` : t === 'audio' ? 'Audio' : 'Text'}
+              </button>
+            ))}
           </div>
+
+          {tab === 'text' ? (
+            <div className="flex-1 overflow-y-auto px-2 pb-4">
+              <ChapterList
+                book={selectedBook.book}
+                selectedPath={selectedChapterPath}
+                onSelect={selectChapter}
+              />
+            </div>
+          ) : (
+            <div className="flex flex-col flex-1 min-h-0">
+              {/* Import / add-more row */}
+              <div className="shrink-0 px-3 py-2">
+                {hasAudio ? (
+                  <div className="flex items-center gap-2 px-1">
+                    <svg viewBox="0 0 20 20" fill="none" className="w-3.5 h-3.5 text-blue-400 shrink-0">
+                      <rect x="1"  y="7" width="2" height="6"  rx="1" fill="currentColor" />
+                      <rect x="5"  y="4" width="2" height="12" rx="1" fill="currentColor" />
+                      <rect x="9"  y="2" width="2" height="16" rx="1" fill="currentColor" />
+                      <rect x="13" y="5" width="2" height="10" rx="1" fill="currentColor" />
+                      <rect x="17" y="8" width="2" height="4"  rx="1" fill="currentColor" />
+                    </svg>
+                    <span className="text-xs text-blue-400 font-medium flex-1">
+                      {tracks.length} track{tracks.length !== 1 ? 's' : ''}
+                    </span>
+                    <button
+                      onClick={handleImportAudio}
+                      disabled={audioLoading}
+                      className="text-xs text-slate-500 hover:text-slate-300 transition-colors disabled:opacity-50"
+                      title="Add more audio tracks"
+                    >
+                      + Add
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={handleImportAudio}
+                    disabled={audioLoading}
+                    className="w-full flex items-center justify-center gap-2 px-3 py-1.5 rounded-lg
+                               border border-dashed border-slate-700 text-slate-500 hover:border-slate-500
+                               hover:text-slate-300 transition-colors text-xs disabled:opacity-50
+                               disabled:cursor-not-allowed"
+                  >
+                    {audioLoading ? 'Importing…' : (
+                      <>
+                        <svg viewBox="0 0 16 16" fill="none" className="w-3.5 h-3.5">
+                          <path d="M8 3v7m0 0-2.5-2.5M8 10l2.5-2.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                          <path d="M3 12.5h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                        </svg>
+                        Import Audiobook Folder
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
+              <div className="flex-1 overflow-y-auto px-2 pb-4">
+                <TrackList />
+              </div>
+            </div>
+          )}
         </div>
       )}
     </aside>
