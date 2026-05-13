@@ -57,7 +57,9 @@ function ensureListeners() {
   });
   el.addEventListener('play',  () => useAudioStore.getState()._setPlaying(true));
   el.addEventListener('pause', () => useAudioStore.getState()._setPlaying(false));
-  el.addEventListener('ended', () => useAudioStore.getState().nextTrack());
+  // Pass autoPlay=true: 'pause' fires before 'ended', so isPlaying is already
+  // false by the time the handler runs — we must carry the intent explicitly.
+  el.addEventListener('ended', () => useAudioStore.getState().nextTrack(true));
 }
 
 function ensureGraph(): AudioContext {
@@ -90,8 +92,8 @@ interface AudioState {
   toggle: () => void;
   seek: (seconds: number) => void;
   setRate: (rate: number) => void;
-  goToTrack: (index: number) => void;
-  nextTrack: () => void;
+  goToTrack: (index: number, autoPlay?: boolean) => void;
+  nextTrack: (autoPlay?: boolean) => void;
   prevTrack: () => void;
 
   // Internal — called only from element event listeners above
@@ -155,14 +157,14 @@ export const useAudioStore = create<AudioState>((set, get) => ({
     set({ playbackRate: rate });
   },
 
-  goToTrack: (index) => {
+  goToTrack: (index, autoPlay) => {
     const { tracks, isPlaying } = get();
     if (index < 0 || index >= tracks.length) return;
     const el = getEl();
     el.src = tracks[index].url;
     el.load();
     set({ currentTrackIndex: index, currentTime: 0, duration: tracks[index].duration ?? 0 });
-    if (isPlaying) {
+    if (autoPlay ?? isPlaying) {
       const ctx = ensureGraph();
       const doPlay = () => el.play().catch(console.error);
       if (ctx.state === 'suspended') void ctx.resume().then(doPlay);
@@ -170,24 +172,23 @@ export const useAudioStore = create<AudioState>((set, get) => ({
     }
   },
 
-  nextTrack: () => {
-    const { tracks, currentTrackIndex } = get();
+  nextTrack: (autoPlay) => {
+    const { tracks, currentTrackIndex, isPlaying } = get();
+    const shouldPlay = autoPlay ?? isPlaying;
     if (currentTrackIndex < tracks.length - 1) {
-      get().goToTrack(currentTrackIndex + 1);
+      get().goToTrack(currentTrackIndex + 1, shouldPlay);
     } else {
-      // End of book — pause and reset to beginning
       get().pause();
       get().goToTrack(0);
     }
   },
 
   prevTrack: () => {
-    const { currentTime, currentTrackIndex } = get();
-    // If more than 3 s into a track, restart it; otherwise go to previous
+    const { currentTime, currentTrackIndex, isPlaying } = get();
     if (currentTime > 3) {
       get().seek(0);
     } else {
-      get().goToTrack(currentTrackIndex - 1);
+      get().goToTrack(currentTrackIndex - 1, isPlaying);
     }
   },
 
