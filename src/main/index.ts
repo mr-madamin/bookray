@@ -1,6 +1,8 @@
-import { app, BrowserWindow, protocol, net } from 'electron';
-import { join } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { app, BrowserWindow, protocol } from 'electron';
+import { join, extname } from 'node:path';
+import { createReadStream } from 'node:fs';
+import { stat } from 'node:fs/promises';
+import { Readable } from 'node:stream';
 import { setupIPC } from './ipc';
 import { setupCSP } from './scp';
 import { getDb } from './db/database.ts';
@@ -54,28 +56,50 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
-  // Serve userData files via bookray:// with CORS headers so the renderer's
-  // Web Audio API (createMediaElementSource) can access them cross-origin.
+  // Serve userData files via bookray:// with proper range-request support so
+  // the audio element can seek. net.fetch against file:// ignores Range headers
+  // and returns a full 200, which causes the audio element to reload from byte 0
+  // on every seek. We serve bytes directly via fs.createReadStream instead.
   protocol.handle('bookray', async (request) => {
     const url = new URL(request.url);
-    // bookray://audio/<bookId>/<file> → hostname='audio', pathname='/<bookId>/<file>'
-    // Reconstruct: 'audio' + '/<bookId>/<file>' = rel_path stored in DB
     const relPath = url.hostname + url.pathname;
     const fullPath = join(app.getPath('userData'), relPath);
-    const fileUrl = pathToFileURL(fullPath).toString();
 
-    const fetchHeaders: Record<string, string> = {};
-    const range = request.headers.get('Range');
-    if (range) fetchHeaders['Range'] = range;
+    let fileSize: number;
+    try {
+      fileSize = (await stat(fullPath)).size;
+    } catch {
+      return new Response('Not found', { status: 404 });
+    }
 
-    const resp = await net.fetch(fileUrl, { headers: fetchHeaders });
-    const headers = new Headers(resp.headers);
-    headers.set('Access-Control-Allow-Origin', '*');
+    const ext = extname(fullPath).toLowerCase().slice(1);
+    const contentTypes: Record<string, string> = {
+      mp3: 'audio/mpeg', m4a: 'audio/mp4', m4b: 'audio/mp4',
+      mp4: 'audio/mp4',  ogg: 'audio/ogg', flac: 'audio/flac',
+      wav: 'audio/wav',  aac: 'audio/aac',
+    };
+    const cors = { 'Access-Control-Allow-Origin': '*', 'Accept-Ranges': 'bytes' };
+    const contentType = contentTypes[ext] ?? 'application/octet-stream';
 
-    return new Response(resp.body, {
-      status: resp.status,
-      statusText: resp.statusText,
-      headers,
+    const rangeHeader = request.headers.get('Range');
+    if (rangeHeader) {
+      const m = rangeHeader.match(/bytes=(\d+)-(\d*)/);
+      if (!m) return new Response('Invalid range', { status: 416 });
+      const start = parseInt(m[1], 10);
+      const end   = m[2] ? parseInt(m[2], 10) : fileSize - 1;
+      const body  = Readable.toWeb(createReadStream(fullPath, { start, end })) as ReadableStream;
+      return new Response(body, {
+        status: 206,
+        headers: { ...cors, 'Content-Type': contentType,
+          'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+          'Content-Length': String(end - start + 1) },
+      });
+    }
+
+    const body = Readable.toWeb(createReadStream(fullPath)) as ReadableStream;
+    return new Response(body, {
+      status: 200,
+      headers: { ...cors, 'Content-Type': contentType, 'Content-Length': String(fileSize) },
     });
   });
 

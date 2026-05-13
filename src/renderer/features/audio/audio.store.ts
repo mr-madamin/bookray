@@ -16,6 +16,8 @@ import type { AudioTrack } from '@shared/types';
 
 let _el: HTMLAudioElement | null = null;
 let _ctx: AudioContext | null = null;
+let _listenersAttached = false;
+let _seekPending = false;
 
 function getEl(): HTMLAudioElement {
   if (!_el) {
@@ -28,19 +30,18 @@ function getEl(): HTMLAudioElement {
   return _el;
 }
 
-function ensureGraph(): AudioContext {
-  if (_ctx) return _ctx;
-
-  _ctx = new AudioContext();
+// Attach element → store event listeners eagerly, independent of AudioContext
+// creation, so durationchange is captured when metadata loads (before play).
+function ensureListeners() {
+  if (_listenersAttached) return;
+  _listenersAttached = true;
   const el = getEl();
-  const src = _ctx.createMediaElementSource(el);
-  const gain = _ctx.createGain();
-  src.connect(gain);
-  gain.connect(_ctx.destination);
 
-  // Wire element events → store updates. These run outside React so we read
-  // store state via getState() rather than hooks.
   el.addEventListener('timeupdate', () => {
+    if (!_seekPending) useAudioStore.getState()._setCurrentTime(el.currentTime);
+  });
+  el.addEventListener('seeked', () => {
+    _seekPending = false;
     useAudioStore.getState()._setCurrentTime(el.currentTime);
   });
   el.addEventListener('durationchange', () => {
@@ -57,6 +58,17 @@ function ensureGraph(): AudioContext {
   el.addEventListener('play',  () => useAudioStore.getState()._setPlaying(true));
   el.addEventListener('pause', () => useAudioStore.getState()._setPlaying(false));
   el.addEventListener('ended', () => useAudioStore.getState().nextTrack());
+}
+
+function ensureGraph(): AudioContext {
+  if (_ctx) return _ctx;
+
+  _ctx = new AudioContext();
+  const el = getEl();
+  const src = _ctx.createMediaElementSource(el);
+  const gain = _ctx.createGain();
+  src.connect(gain);
+  gain.connect(_ctx.destination);
 
   return _ctx;
 }
@@ -97,6 +109,7 @@ export const useAudioStore = create<AudioState>((set, get) => ({
   playbackRate: 1,
 
   setTracks: (tracks) => {
+    ensureListeners();
     const el = getEl();
     el.pause();
     el.src = '';
@@ -129,8 +142,10 @@ export const useAudioStore = create<AudioState>((set, get) => ({
   },
 
   seek: (seconds) => {
+    _seekPending = true;
     const el = getEl();
-    const clamped = Math.max(0, Math.min(el.duration || 0, seconds));
+    const maxDur = (isFinite(el.duration) && el.duration > 0) ? el.duration : get().duration;
+    const clamped = Math.max(0, Math.min(maxDur, seconds));
     el.currentTime = clamped;
     set({ currentTime: clamped });
   },

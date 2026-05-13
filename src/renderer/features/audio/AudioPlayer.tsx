@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { useAudioStore } from './audio.store';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -60,29 +61,30 @@ function Scrubber({
   onSeek: (v: number) => void;
 }) {
   const pct = total > 0 ? (current / total) * 100 : 0;
+  const trackRef = useRef<HTMLDivElement>(null);
+
+  function seekTo(clientX: number) {
+    if (!total || !trackRef.current) return;
+    const rect = trackRef.current.getBoundingClientRect();
+    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    onSeek(ratio * total);
+  }
 
   return (
     <div className="flex items-center gap-2 w-full max-w-xl">
       <span className="text-xs text-slate-500 tabular-nums w-9 text-right shrink-0">{fmt(current)}</span>
-      <div className="relative flex-1 h-1 group">
-        {/* Track background */}
-        <div className="absolute inset-0 rounded-full bg-slate-700 overflow-hidden">
+      <div
+        ref={trackRef}
+        className="relative flex-1 h-4 flex items-center group cursor-pointer"
+        onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); seekTo(e.clientX); }}
+        onPointerMove={(e) => { if (e.buttons === 1) seekTo(e.clientX); }}
+      >
+        <div className="absolute inset-x-0 h-1 rounded-full bg-slate-700 overflow-hidden pointer-events-none">
           <div
             className="h-full bg-blue-500 rounded-full transition-none"
             style={{ width: `${pct}%` }}
           />
         </div>
-        {/* Invisible range input on top for interaction */}
-        <input
-          type="range"
-          min={0}
-          max={total || 1}
-          step={0.5}
-          value={current}
-          onChange={(e) => onSeek(Number(e.target.value))}
-          className="absolute inset-0 w-full opacity-0 cursor-pointer h-1"
-        />
-        {/* Thumb dot — appears on hover */}
         <div
           className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow
                      opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
