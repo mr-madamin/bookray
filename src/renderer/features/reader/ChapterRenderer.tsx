@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import type { LibraryBook } from '../library/library.store';
+import { useThemeStore } from './theme.store';
+import { THEMES, THEME_IDS } from './themes';
+import type { Theme } from './themes';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -110,28 +113,28 @@ function buildPagerCSS(): string {
   `.trim();
 }
 
-function buildThemeCSS({ fontSize, lineHeight }: ReaderSettings): string {
+function buildThemeCSS({ fontSize, lineHeight }: ReaderSettings, theme: Theme): string {
   return `
     *, *::before, *::after { box-sizing: border-box; }
-    html { background: #0f172a !important; }
+    html { background: ${theme.bg} !important; }
     body {
-      background: #0f172a !important;
-      color: #cbd5e1 !important;
+      background: ${theme.bg} !important;
+      color: ${theme.text} !important;
       font-size: ${fontSize}px !important;
       line-height: ${lineHeight} !important;
       font-family: Georgia, 'Times New Roman', serif;
     }
-    h1, h2, h3, h4, h5, h6 { color: #f1f5f9 !important; line-height: 1.3; }
-    a { color: #60a5fa; }
+    h1, h2, h3, h4, h5, h6 { color: ${theme.heading} !important; line-height: 1.3; }
+    a { color: ${theme.link}; }
     img, svg { max-width: 100%; height: auto; display: block; margin: 1em auto; }
     p { margin-top: 0; margin-bottom: 0.75em; }
     blockquote {
-      border-left: 3px solid #334155;
+      border-left: 3px solid ${theme.blockquoteBorder};
       margin-left: 0;
       padding-left: 1rem;
-      color: #94a3b8 !important;
+      color: ${theme.blockquoteText} !important;
     }
-    pre, code { background: #1e293b; border-radius: 4px; padding: 0.15em 0.4em; }
+    pre, code { background: ${theme.codeBg}; border-radius: 4px; padding: 0.15em 0.4em; }
     pre { padding: 1em; overflow-x: auto; }
   `.trim();
 }
@@ -164,6 +167,7 @@ function buildSrcdoc(
   stylesheets: Record<string, string>,
   chapterPath: string,
   settings: ReaderSettings,
+  theme: Theme,
 ): string {
   let html = xhtml;
 
@@ -208,7 +212,7 @@ function buildSrcdoc(
   // 6. Inject styles — pager first so theme can override if needed
   const styles = [
     `<style id="bookray-pager">\n${buildPagerCSS()}\n</style>`,
-    `<style id="bookray-theme">\n${buildThemeCSS(settings)}\n</style>`,
+    `<style id="bookray-theme">\n${buildThemeCSS(settings, theme)}\n</style>`,
   ].join('\n');
 
   if (/<\/head>/i.test(html)) {
@@ -224,29 +228,77 @@ function buildSrcdoc(
 
 interface ControlsProps {
   settings: ReaderSettings;
+  theme: Theme;
   onFontSize: (delta: number) => void;
   onLineHeight: (delta: number) => void;
+  onTheme: (id: string) => void;
 }
 
-function ReaderControls({ settings, onFontSize, onLineHeight }: ControlsProps) {
-  const btn =
-    'h-7 rounded flex items-center justify-center text-slate-400 hover:bg-slate-800 hover:text-slate-200 transition-colors text-xs px-2';
+function ReaderControls({ settings, theme, onFontSize, onLineHeight, onTheme }: ControlsProps) {
+  const { setTheme } = useThemeStore();
   return (
-    <div className="flex items-center gap-3 px-4 py-2 border-b border-slate-800 bg-slate-900 shrink-0 select-none">
-      <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Text</span>
+    <div
+      className="flex items-center gap-3 px-4 py-2 border-b shrink-0 select-none"
+      style={{ background: theme.chromeBg, borderColor: theme.chromeBorder }}
+    >
+      <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: theme.chromeTextMuted }}>Text</span>
       <div className="flex items-center gap-1">
-        <button onClick={() => onFontSize(-1)} className={btn} title="Smaller">A−</button>
-        <span className="text-xs text-slate-500 tabular-nums w-7 text-center">{settings.fontSize}</span>
-        <button onClick={() => onFontSize(1)} className={btn} title="Larger">A+</button>
+        <button
+          onClick={() => onFontSize(-1)}
+          className="h-7 rounded px-2 text-xs transition-colors"
+          style={{ color: theme.chromeText }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = theme.chromeBtnHover)}
+          onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+          title="Smaller"
+        >A−</button>
+        <span className="text-xs tabular-nums w-7 text-center" style={{ color: theme.chromeTextMuted }}>{settings.fontSize}</span>
+        <button
+          onClick={() => onFontSize(1)}
+          className="h-7 rounded px-2 text-xs transition-colors"
+          style={{ color: theme.chromeText }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = theme.chromeBtnHover)}
+          onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+          title="Larger"
+        >A+</button>
       </div>
-      <div className="w-px h-4 bg-slate-800" />
+      <div className="w-px h-4" style={{ background: theme.chromeBorder }} />
       <div className="flex items-center gap-1">
-        <span className="text-xs text-slate-500">Spacing</span>
-        <button onClick={() => onLineHeight(-0.1)} className={btn} title="Tighter">−</button>
-        <span className="text-xs text-slate-500 tabular-nums w-7 text-center">
+        <span className="text-xs" style={{ color: theme.chromeTextMuted }}>Spacing</span>
+        <button
+          onClick={() => onLineHeight(-0.1)}
+          className="h-7 rounded px-2 text-xs transition-colors"
+          style={{ color: theme.chromeText }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = theme.chromeBtnHover)}
+          onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+          title="Tighter"
+        >−</button>
+        <span className="text-xs tabular-nums w-7 text-center" style={{ color: theme.chromeTextMuted }}>
           {settings.lineHeight.toFixed(1)}
         </span>
-        <button onClick={() => onLineHeight(0.1)} className={btn} title="Looser">+</button>
+        <button
+          onClick={() => onLineHeight(0.1)}
+          className="h-7 rounded px-2 text-xs transition-colors"
+          style={{ color: theme.chromeText }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = theme.chromeBtnHover)}
+          onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+          title="Looser"
+        >+</button>
+      </div>
+      <div className="w-px h-4" style={{ background: theme.chromeBorder }} />
+      {/* Theme swatches */}
+      <div className="flex items-center gap-1.5 ml-auto">
+        {THEME_IDS.map((id) => (
+          <button
+            key={id}
+            onClick={() => { setTheme(id); onTheme(id); }}
+            title={THEMES[id].name}
+            className="w-4 h-4 rounded-full border-2 transition-transform hover:scale-110 cursor-pointer"
+            style={{
+              background: THEMES[id].bg,
+              borderColor: theme.id === id ? theme.chromeText : theme.chromeBorder,
+            }}
+          />
+        ))}
       </div>
     </div>
   );
@@ -258,27 +310,45 @@ interface PaginationBarProps {
   page: number;
   total: number;
   twoPage: boolean;
+  theme: Theme;
   onPrev: () => void;
   onNext: () => void;
 }
 
-function PaginationBar({ page, total, twoPage, onPrev, onNext }: PaginationBarProps) {
-  const btn =
-    'h-8 w-8 rounded flex items-center justify-center text-slate-400 hover:bg-slate-800 hover:text-slate-200 transition-colors disabled:opacity-25 disabled:cursor-not-allowed';
+function PaginationBar({ page, total, twoPage, theme, onPrev, onNext }: PaginationBarProps) {
   return (
-    <div className="flex items-center justify-between px-6 py-2 border-t border-slate-800 bg-slate-900 shrink-0 select-none">
-      <button onClick={onPrev} disabled={page === 0} className={btn} title="Previous page (←)">
+    <div
+      className="flex items-center justify-between px-6 py-2 border-t shrink-0 select-none"
+      style={{ background: theme.chromeBg, borderColor: theme.chromeBorder }}
+    >
+      <button
+        onClick={onPrev}
+        disabled={page === 0}
+        className="h-8 w-8 rounded flex items-center justify-center transition-colors disabled:opacity-25 disabled:cursor-not-allowed cursor-pointer"
+        style={{ color: theme.chromeText }}
+        onMouseEnter={(e) => { if (page > 0) (e.currentTarget as HTMLButtonElement).style.background = theme.chromeBtnHover; }}
+        onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
+        title="Previous page (←)"
+      >
         <svg viewBox="0 0 16 16" fill="none" className="w-4 h-4">
           <path d="M10 12L6 8l4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </button>
-      <span className="text-xs text-slate-500 tabular-nums">
+      <span className="text-xs tabular-nums" style={{ color: theme.chromeTextMuted }}>
         {twoPage ? 'Spread' : 'Page'}{' '}
-        <span className="text-slate-300">{page + 1}</span>
-        <span className="text-slate-700 mx-1">/</span>
+        <span style={{ color: theme.chromeText }}>{page + 1}</span>
+        <span className="mx-1" style={{ color: theme.chromeBorder }}>/</span>
         {total}
       </span>
-      <button onClick={onNext} disabled={page >= total - 1} className={btn} title="Next page (→)">
+      <button
+        onClick={onNext}
+        disabled={page >= total - 1}
+        className="h-8 w-8 rounded flex items-center justify-center transition-colors disabled:opacity-25 disabled:cursor-not-allowed cursor-pointer"
+        style={{ color: theme.chromeText }}
+        onMouseEnter={(e) => { if (page < total - 1) (e.currentTarget as HTMLButtonElement).style.background = theme.chromeBtnHover; }}
+        onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
+        title="Next page (→)"
+      >
         <svg viewBox="0 0 16 16" fill="none" className="w-4 h-4">
           <path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
@@ -297,6 +367,9 @@ interface Props {
 export default function ChapterRenderer({ entry, chapterPath }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  const themeId  = useThemeStore((s) => s.themeId);
+  const theme    = THEMES[themeId];
 
   const [srcdoc, setSrcdoc] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -342,7 +415,7 @@ export default function ChapterRenderer({ entry, chapterPath }: Props) {
   function initPagination() {
     const iframe = iframeRef.current;
     const doc = iframe?.contentDocument;
-    if (!doc) return;
+    if (!doc?.documentElement) return;
 
     const { columnWidth, stepWidth, twoPage: tp } = currentLayout();
 
@@ -366,7 +439,7 @@ export default function ChapterRenderer({ entry, chapterPath }: Props) {
   function recheckPages() {
     const iframe = iframeRef.current;
     const doc = iframe?.contentDocument;
-    if (!doc) return;
+    if (!doc?.documentElement) return;
 
     const { columnWidth, stepWidth, twoPage: tp } = currentLayout();
     doc.documentElement.style.setProperty('--br-pw', `${columnWidth}px`);
@@ -407,7 +480,7 @@ export default function ChapterRenderer({ entry, chapterPath }: Props) {
         // Store fraction for initPagination to consume after the iframe loads.
         pendingFractionRef.current =
           progress?.chapterPath === chapterPath ? progress.pageFraction : null;
-        setSrcdoc(buildSrcdoc(xhtml, assets, stylesheets, chapterPath, settings));
+        setSrcdoc(buildSrcdoc(xhtml, assets, stylesheets, chapterPath, settings, theme));
       })
       .catch((err: unknown) => {
         if (cancelled) return;
@@ -448,11 +521,10 @@ export default function ChapterRenderer({ entry, chapterPath }: Props) {
 
     function inject() {
       const doc = iframe!.contentDocument;
-      if (!doc) return;
+      if (!doc?.documentElement) return;
       const el = doc.getElementById('bookray-theme') as HTMLStyleElement | null;
       if (el) {
-        el.textContent = buildThemeCSS(settings);
-        // Font size/line-height changes alter column count — recheck after reflow
+        el.textContent = buildThemeCSS(settings, theme);
         requestAnimationFrame(() => recheckPages());
       }
     }
@@ -463,7 +535,7 @@ export default function ChapterRenderer({ entry, chapterPath }: Props) {
       iframe.addEventListener('load', inject, { once: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settings, srcdoc]);
+  }, [settings, theme, srcdoc]);
 
   // ── ResizeObserver ─────────────────────────────────────────────────────────
 
@@ -569,16 +641,16 @@ export default function ChapterRenderer({ entry, chapterPath }: Props) {
 
   return (
     <div className="flex flex-col h-full min-h-0">
-      <ReaderControls settings={settings} onFontSize={adjustFontSize} onLineHeight={adjustLineHeight} />
+      <ReaderControls settings={settings} theme={theme} onFontSize={adjustFontSize} onLineHeight={adjustLineHeight} onTheme={() => {}} />
 
       <div ref={containerRef} className="relative flex-1 min-h-0 overflow-hidden">
         {loading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-slate-950 z-10">
-            <p className="text-slate-500 text-sm">Loading chapter…</p>
+          <div className="absolute inset-0 flex items-center justify-center z-10" style={{ background: theme.bg }}>
+            <p className="text-sm" style={{ color: theme.chromeTextMuted }}>Loading chapter…</p>
           </div>
         )}
         {error && (
-          <div className="absolute inset-0 flex items-center justify-center bg-slate-950 z-10 px-8">
+          <div className="absolute inset-0 flex items-center justify-center z-10 px-8" style={{ background: theme.bg }}>
             <p className="text-red-400 text-sm text-center">{error}</p>
           </div>
         )}
@@ -614,6 +686,7 @@ export default function ChapterRenderer({ entry, chapterPath }: Props) {
           page={page}
           total={totalPages}
           twoPage={twoPage}
+          theme={theme}
           onPrev={() => goToPage(pageRef.current - 1)}
           onNext={() => goToPage(pageRef.current + 1)}
         />

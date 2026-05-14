@@ -1,5 +1,8 @@
 import { useRef } from 'react';
 import { useAudioStore } from './audio.store';
+import { useThemeStore } from '../reader/theme.store';
+import { THEMES } from '../reader/themes';
+import type { Theme } from '../reader/themes';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -55,10 +58,12 @@ function Scrubber({
   current,
   total,
   onSeek,
+  theme,
 }: {
   current: number;
   total: number;
   onSeek: (v: number) => void;
+  theme: Theme;
 }) {
   const pct = total > 0 ? (current / total) * 100 : 0;
   const trackRef = useRef<HTMLDivElement>(null);
@@ -72,26 +77,26 @@ function Scrubber({
 
   return (
     <div className="flex items-center gap-2 w-full max-w-xl">
-      <span className="text-xs text-slate-500 tabular-nums w-9 text-right shrink-0">{fmt(current)}</span>
+      <span className="text-xs tabular-nums w-9 text-right shrink-0" style={{ color: theme.chromeTextMuted }}>{fmt(current)}</span>
       <div
         ref={trackRef}
         className="relative flex-1 h-4 flex items-center group cursor-pointer"
         onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); seekTo(e.clientX); }}
         onPointerMove={(e) => { if (e.buttons === 1) seekTo(e.clientX); }}
       >
-        <div className="absolute inset-x-0 h-1 rounded-full bg-slate-700 overflow-hidden pointer-events-none">
-          <div
-            className="h-full bg-blue-500 rounded-full transition-none"
-            style={{ width: `${pct}%` }}
-          />
+        <div
+          className="absolute inset-x-0 h-1 rounded-full overflow-hidden pointer-events-none"
+          style={{ background: theme.chromeBtnHover }}
+        >
+          <div className="h-full bg-blue-500 rounded-full transition-none" style={{ width: `${pct}%` }} />
         </div>
         <div
-          className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow
+          className="absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full shadow
                      opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
-          style={{ left: `calc(${pct}% - 6px)` }}
+          style={{ left: `calc(${pct}% - 6px)`, background: theme.chromeText }}
         />
       </div>
-      <span className="text-xs text-slate-500 tabular-nums w-9 shrink-0">{fmt(total)}</span>
+      <span className="text-xs tabular-nums w-9 shrink-0" style={{ color: theme.chromeTextMuted }}>{fmt(total)}</span>
     </div>
   );
 }
@@ -99,35 +104,35 @@ function Scrubber({
 // ── AudioPlayer ───────────────────────────────────────────────────────────────
 
 export default function AudioPlayer() {
-  const tracks          = useAudioStore((s) => s.tracks);
-  const idx             = useAudioStore((s) => s.currentTrackIndex);
-  const isPlaying       = useAudioStore((s) => s.isPlaying);
-  const currentTime     = useAudioStore((s) => s.currentTime);
-  const duration        = useAudioStore((s) => s.duration);
-  const playbackRate    = useAudioStore((s) => s.playbackRate);
-  const toggle          = useAudioStore((s) => s.toggle);
-  const seek            = useAudioStore((s) => s.seek);
-  const setRate         = useAudioStore((s) => s.setRate);
-  const nextTrack       = useAudioStore((s) => s.nextTrack);
-  const prevTrack       = useAudioStore((s) => s.prevTrack);
+  const tracks       = useAudioStore((s) => s.tracks);
+  const idx          = useAudioStore((s) => s.currentTrackIndex);
+  const isPlaying    = useAudioStore((s) => s.isPlaying);
+  const currentTime  = useAudioStore((s) => s.currentTime);
+  const duration     = useAudioStore((s) => s.duration);
+  const playbackRate = useAudioStore((s) => s.playbackRate);
+  const toggle       = useAudioStore((s) => s.toggle);
+  const seek         = useAudioStore((s) => s.seek);
+  const setRate      = useAudioStore((s) => s.setRate);
+  const nextTrack    = useAudioStore((s) => s.nextTrack);
+  const prevTrack    = useAudioStore((s) => s.prevTrack);
 
+  const theme = THEMES[useThemeStore((s) => s.themeId)];
   const track = tracks[idx];
 
-  const iconBtn =
-    'flex items-center justify-center text-slate-400 hover:text-slate-100 transition-colors disabled:opacity-30 disabled:cursor-not-allowed';
+  const disabled = tracks.length === 0;
 
   return (
-    <div className="h-[72px] bg-slate-900 border-t border-slate-800 flex items-center px-5 gap-5 shrink-0 select-none">
-
+    <div
+      className="h-[72px] border-t flex items-center px-5 gap-5 shrink-0 select-none"
+      style={{ background: theme.chromeBg, borderColor: theme.chromeBorder }}
+    >
       {/* ── Track info ── */}
       <div className="w-44 min-w-0 shrink-0">
-        <p className="text-sm font-medium text-slate-200 truncate leading-snug">
+        <p className="text-sm font-medium truncate leading-snug" style={{ color: theme.chromeText }}>
           {track?.title ?? '—'}
         </p>
-        <p className="text-xs text-slate-500 mt-0.5">
-          {tracks.length > 0
-            ? `Track ${idx + 1} of ${tracks.length}`
-            : 'No tracks loaded'}
+        <p className="text-xs mt-0.5" style={{ color: theme.chromeTextMuted }}>
+          {tracks.length > 0 ? `Track ${idx + 1} of ${tracks.length}` : 'No tracks loaded'}
         </p>
       </div>
 
@@ -137,40 +142,43 @@ export default function AudioPlayer() {
         <div className="flex items-center gap-4">
           <button
             onClick={prevTrack}
-            disabled={tracks.length === 0}
-            className={iconBtn}
+            disabled={disabled}
+            className="flex items-center justify-center transition-colors disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+            style={{ color: theme.chromeText }}
             title="Previous track / restart"
           >
             <SkipBackIcon />
           </button>
 
-          {/* -15 s */}
           <button
             onClick={() => seek(currentTime - 15)}
-            disabled={tracks.length === 0}
-            className={`${iconBtn} text-xs font-semibold w-8 h-8 rounded-full hover:bg-slate-800`}
+            disabled={disabled}
+            className="text-xs font-semibold w-8 h-8 rounded-full flex items-center justify-center transition-colors disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+            style={{ color: theme.chromeText }}
+            onMouseEnter={(e) => { if (!disabled) (e.currentTarget as HTMLButtonElement).style.background = theme.chromeBtnHover; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
             title="Back 15 s"
           >
             15
           </button>
 
-          {/* Play / Pause */}
           <button
             onClick={toggle}
-            disabled={tracks.length === 0}
-            className="w-9 h-9 rounded-full bg-white text-slate-900 flex items-center justify-center
-                       hover:bg-slate-100 active:scale-95 transition-transform cursor-pointer
-                       disabled:opacity-30 disabled:cursor-not-allowed"
+            disabled={disabled}
+            className="w-9 h-9 rounded-full flex items-center justify-center active:scale-95 transition-transform cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+            style={{ background: theme.chromeText, color: theme.chromeBg }}
             title={isPlaying ? 'Pause' : 'Play'}
           >
             {isPlaying ? <PauseIcon /> : <PlayIcon />}
           </button>
 
-          {/* +15 s */}
           <button
             onClick={() => seek(currentTime + 15)}
-            disabled={tracks.length === 0}
-            className={`${iconBtn} text-xs font-semibold w-8 h-8 rounded-full hover:bg-slate-800`}
+            disabled={disabled}
+            className="text-xs font-semibold w-8 h-8 rounded-full flex items-center justify-center transition-colors disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+            style={{ color: theme.chromeText }}
+            onMouseEnter={(e) => { if (!disabled) (e.currentTarget as HTMLButtonElement).style.background = theme.chromeBtnHover; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
             title="Forward 15 s"
           >
             15
@@ -178,29 +186,30 @@ export default function AudioPlayer() {
 
           <button
             onClick={() => nextTrack()}
-            disabled={tracks.length === 0}
-            className={iconBtn}
+            disabled={disabled}
+            className="flex items-center justify-center transition-colors disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+            style={{ color: theme.chromeText }}
             title="Next track"
           >
             <SkipForwardIcon />
           </button>
         </div>
 
-        {/* Scrubber */}
-        <Scrubber current={currentTime} total={duration} onSeek={seek} />
+        <Scrubber current={currentTime} total={duration} onSeek={seek} theme={theme} />
       </div>
 
       {/* ── Speed control ── */}
-      <div className="shrink-0 flex items-center gap-0.5 bg-slate-800 rounded-lg p-0.5">
+      <div className="shrink-0 flex items-center gap-0.5 rounded-lg p-0.5" style={{ background: theme.chromeBtnHover }}>
         {SPEEDS.map((speed) => (
           <button
             key={speed}
             onClick={() => setRate(speed)}
-            className={`px-2 py-1 text-xs rounded-md font-medium transition-colors ${
-              playbackRate === speed
-                ? 'bg-blue-500 text-white'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
+            className="px-2 py-1 text-xs rounded-md font-medium transition-colors cursor-pointer"
+            style={playbackRate === speed
+              ? { background: '#3b82f6', color: '#fff' }
+              : { color: theme.chromeText }}
+            onMouseEnter={(e) => { if (playbackRate !== speed) (e.currentTarget as HTMLButtonElement).style.color = theme.heading; }}
+            onMouseLeave={(e) => { if (playbackRate !== speed) (e.currentTarget as HTMLButtonElement).style.color = theme.chromeText; }}
             title={`${speed}× speed`}
           >
             {speed === 1 ? '1×' : `${speed}×`}

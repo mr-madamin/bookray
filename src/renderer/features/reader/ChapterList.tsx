@@ -1,4 +1,6 @@
 import type { SerializedEpubBook } from '@shared/types';
+import { useThemeStore } from './theme.store';
+import { THEMES } from './themes';
 
 interface ChapterEntry {
   path: string;
@@ -30,7 +32,6 @@ function buildEntries(book: SerializedEpubBook): ChapterEntry[] {
   if (book.toc.length > 0) {
     return flattenToc(book.toc);
   }
-  // Fallback: use linear spine items
   return book.spine
     .filter((c) => c.linear)
     .map((c, i) => ({ path: c.path, label: `Chapter ${i + 1}`, depth: 0 }));
@@ -43,6 +44,7 @@ interface Props {
 }
 
 export default function ChapterList({ book, selectedPath, onSelect }: Props) {
+  const theme   = THEMES[useThemeStore((s) => s.themeId)];
   const entries = buildEntries(book);
 
   return (
@@ -54,12 +56,15 @@ export default function ChapterList({ book, selectedPath, onSelect }: Props) {
             key={`${entry.path}-${i}`}
             onClick={() => onSelect(entry.path)}
             title={entry.label}
-            className={`w-full text-left rounded px-2 py-1.5 text-xs leading-snug transition-colors ${
-              isSelected
-                ? 'bg-blue-500/10 text-blue-400 border-l-2 border-blue-500'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 border-l-2 border-transparent'
-            }`}
-            style={{ paddingLeft: `${0.5 + entry.depth * 0.75}rem` }}
+            className="w-full text-left rounded px-2 py-1.5 text-xs leading-snug transition-colors border-l-2 cursor-pointer"
+            style={{
+              paddingLeft: `${0.5 + entry.depth * 0.75}rem`,
+              background: isSelected ? 'rgba(59,130,246,0.1)' : 'transparent',
+              color: isSelected ? '#60a5fa' : theme.chromeText,
+              borderColor: isSelected ? '#3b82f6' : 'transparent',
+            }}
+            onMouseEnter={(e) => { if (!isSelected) (e.currentTarget as HTMLButtonElement).style.background = theme.chromeBtnHover; }}
+            onMouseLeave={(e) => { if (!isSelected) (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
           >
             <span className="truncate block">{entry.label}</span>
           </button>

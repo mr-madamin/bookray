@@ -1,4 +1,6 @@
 import { useAudioStore } from './audio.store';
+import { useThemeStore } from '../reader/theme.store';
+import { THEMES } from '../reader/themes';
 
 function fmt(seconds: number | null): string {
   if (seconds === null || !isFinite(seconds) || seconds < 0) return '';
@@ -11,14 +13,15 @@ function fmt(seconds: number | null): string {
 }
 
 export default function TrackList() {
-  const tracks      = useAudioStore((s) => s.tracks);
-  const currentIdx  = useAudioStore((s) => s.currentTrackIndex);
-  const isPlaying   = useAudioStore((s) => s.isPlaying);
-  const goToTrack   = useAudioStore((s) => s.goToTrack);
+  const tracks     = useAudioStore((s) => s.tracks);
+  const currentIdx = useAudioStore((s) => s.currentTrackIndex);
+  const isPlaying  = useAudioStore((s) => s.isPlaying);
+  const goToTrack  = useAudioStore((s) => s.goToTrack);
+  const theme      = THEMES[useThemeStore((s) => s.themeId)];
 
   if (tracks.length === 0) {
     return (
-      <p className="text-xs text-slate-600 text-center mt-6 px-4 leading-relaxed">
+      <p className="text-xs text-center mt-6 px-4 leading-relaxed" style={{ color: theme.chromeTextMuted }}>
         No audio tracks loaded.
       </p>
     );
@@ -32,21 +35,20 @@ export default function TrackList() {
           <li key={track.id}>
             <button
               onClick={() => goToTrack(i, isPlaying)}
-              className={`w-full text-left px-3 py-2 rounded-lg flex items-center gap-2.5 transition-colors ${
-                active
-                  ? 'bg-blue-500/15 text-blue-300'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
-              }`}
+              className="w-full text-left px-3 py-2 rounded-lg flex items-center gap-2.5 transition-colors cursor-pointer"
+              style={{
+                background: active ? 'rgba(59,130,246,0.1)' : 'transparent',
+                color: active ? '#60a5fa' : theme.chromeText,
+              }}
+              onMouseEnter={(e) => { if (!active) (e.currentTarget as HTMLButtonElement).style.background = theme.chromeBtnHover; }}
+              onMouseLeave={(e) => { if (!active) (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
             >
-              <span className="text-xs tabular-nums w-4 shrink-0 text-right">
-                {active && isPlaying
-                  ? <span className="text-blue-400">▶</span>
-                  : <span className={active ? 'text-blue-400' : 'text-slate-600'}>{i + 1}</span>
-                }
+              <span className="text-xs tabular-nums w-4 shrink-0 text-right" style={{ color: active ? '#60a5fa' : theme.chromeTextMuted }}>
+                {active && isPlaying ? '▶' : i + 1}
               </span>
               <span className="flex-1 text-xs truncate">{track.title}</span>
               {track.duration !== null && (
-                <span className="text-xs text-slate-600 tabular-nums shrink-0">{fmt(track.duration)}</span>
+                <span className="text-xs tabular-nums shrink-0" style={{ color: theme.chromeTextMuted }}>{fmt(track.duration)}</span>
               )}
             </button>
           </li>

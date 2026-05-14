@@ -1,11 +1,14 @@
 import { useState } from 'react';
 import { useLibraryStore } from './library.store';
 import { useAudioStore } from '../audio/audio.store';
+import { useThemeStore } from '../reader/theme.store';
+import { THEMES, THEME_IDS } from '../reader/themes';
 import BookListItem from './BookListItem';
 import ChapterList, { countChapters } from '../reader/ChapterList';
 import TrackList from '../audio/TrackList';
 
 function Logo() {
+  const theme = THEMES[useThemeStore((s) => s.themeId)];
   return (
     <div className="flex items-center gap-2.5">
       <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5 text-blue-400 shrink-0">
@@ -19,14 +22,15 @@ function Logo() {
         <line x1="4.93"  y1="19.07" x2="7.05"  y2="16.95" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
         <line x1="16.95" y1="7.05"  x2="19.07" y2="4.93"  stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
       </svg>
-      <span className="text-slate-100 font-semibold tracking-wide text-sm">BookRay</span>
+      <span className="font-semibold tracking-wide text-sm" style={{ color: theme.chromeText }}>BookRay</span>
     </div>
   );
 }
 
 function SectionLabel({ children }: { children: string }) {
+  const theme = THEMES[useThemeStore((s) => s.themeId)];
   return (
-    <p className="px-4 py-2 text-xs font-semibold uppercase tracking-widest text-slate-600">
+    <p className="px-4 py-2 text-xs font-semibold uppercase tracking-widest" style={{ color: theme.chromeTextMuted }}>
       {children}
     </p>
   );
@@ -43,7 +47,11 @@ export default function Sidebar() {
   const setTracks = useAudioStore((s) => s.setTracks);
   const hasAudio  = tracks.length > 0;
 
-  const [tab, setTab]                   = useState<'text' | 'audio'>('text');
+  const themeId  = useThemeStore((s) => s.themeId);
+  const setTheme = useThemeStore((s) => s.setTheme);
+  const theme    = THEMES[themeId];
+
+  const [tab, setTab] = useState<'text' | 'audio'>('text');
   const [loading, setLoading]           = useState(false);
   const [audioLoading, setAudioLoading] = useState(false);
   const [error, setError]               = useState<string | null>(null);
@@ -82,10 +90,12 @@ export default function Sidebar() {
   }
 
   return (
-    <aside className="w-60 shrink-0 bg-slate-900 border-r border-slate-800 flex flex-col h-full overflow-hidden">
-
+    <aside
+      className="w-60 shrink-0 flex flex-col h-full overflow-hidden border-r"
+      style={{ background: theme.chromeBg, borderColor: theme.chromeBorder }}
+    >
       {/* ── Header ── */}
-      <div className="px-4 pt-5 pb-4 border-b border-slate-800 shrink-0">
+      <div className="px-4 pt-5 pb-4 border-b shrink-0" style={{ borderColor: theme.chromeBorder }}>
         <div className="mb-4"><Logo /></div>
         <button
           onClick={handleOpenEpub}
@@ -104,7 +114,7 @@ export default function Sidebar() {
         <SectionLabel>Library</SectionLabel>
         <div className="overflow-y-auto px-2 pb-2 space-y-0.5">
           {books.length === 0 ? (
-            <p className="text-xs text-slate-600 text-center mt-4 px-4 leading-relaxed">
+            <p className="text-xs text-center mt-4 px-4 leading-relaxed" style={{ color: theme.chromeTextMuted }}>
               No books yet.<br />Open an EPUB to get started.
             </p>
           ) : (
@@ -115,7 +125,7 @@ export default function Sidebar() {
 
       {/* ── Tabbed contents (when a book is selected) ── */}
       {selectedBook && (
-        <div className="flex flex-col flex-1 min-h-0 border-t border-slate-800">
+        <div className="flex flex-col flex-1 min-h-0 border-t" style={{ borderColor: theme.chromeBorder }}>
 
           {/* Tab bar */}
           <div className="flex shrink-0 gap-1 px-3 pt-2 pb-1">
@@ -123,15 +133,14 @@ export default function Sidebar() {
               <button
                 key={t}
                 onClick={() => setTab(t)}
-                className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-colors capitalize cursor-pointer ${
-                  tab === t
-                    ? 'bg-slate-700 text-slate-200'
-                    : 'text-slate-500 hover:text-slate-300'
-                }`}
+                className="flex-1 py-1.5 text-xs font-medium rounded-md transition-colors capitalize cursor-pointer"
+                style={tab === t
+                  ? { background: theme.chromeBtnHover, color: theme.chromeText }
+                  : { color: theme.chromeTextMuted }}
               >
                 {t === 'text'
-  ? `Text (${countChapters(selectedBook.book)})`
-  : hasAudio ? `Audio (${tracks.length})` : 'Audio'}
+                  ? `Text (${countChapters(selectedBook.book)})`
+                  : hasAudio ? `Audio (${tracks.length})` : 'Audio'}
               </button>
             ))}
           </div>
@@ -163,7 +172,8 @@ export default function Sidebar() {
                     <button
                       onClick={handleImportAudio}
                       disabled={audioLoading}
-                      className="text-xs text-slate-500 hover:text-slate-300 transition-colors disabled:opacity-50"
+                      className="text-xs transition-colors disabled:opacity-50 cursor-pointer"
+                      style={{ color: theme.chromeTextMuted }}
                       title="Add more audio tracks"
                     >
                       + Add
@@ -174,9 +184,9 @@ export default function Sidebar() {
                     onClick={handleImportAudio}
                     disabled={audioLoading}
                     className="w-full flex items-center justify-center gap-2 px-3 py-1.5 rounded-lg
-                               border border-dashed border-slate-700 text-slate-500 hover:border-slate-500
-                               hover:text-slate-300 transition-colors text-xs disabled:opacity-50
-                               disabled:cursor-not-allowed"
+                               border border-dashed transition-colors text-xs disabled:opacity-50
+                               disabled:cursor-not-allowed cursor-pointer"
+                    style={{ borderColor: theme.chromeBorder, color: theme.chromeTextMuted }}
                   >
                     {audioLoading ? 'Importing…' : (
                       <>
@@ -197,6 +207,23 @@ export default function Sidebar() {
           )}
         </div>
       )}
+
+      {/* ── Theme switcher ── */}
+      <div className="shrink-0 px-4 py-3 border-t flex items-center gap-2" style={{ borderColor: theme.chromeBorder }}>
+        <span className="text-xs font-medium uppercase tracking-wider mr-1" style={{ color: theme.chromeTextMuted }}>Theme</span>
+        {THEME_IDS.map((id) => (
+          <button
+            key={id}
+            title={THEMES[id].name}
+            onClick={() => setTheme(id)}
+            className="w-5 h-5 rounded-full border-2 cursor-pointer transition-transform hover:scale-110"
+            style={{
+              background: THEMES[id].bg,
+              borderColor: themeId === id ? theme.chromeText : theme.chromeBorder,
+            }}
+          />
+        ))}
+      </div>
     </aside>
   );
 }

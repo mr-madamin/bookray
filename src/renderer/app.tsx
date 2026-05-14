@@ -1,16 +1,19 @@
 import { useEffect, useState } from 'react';
 import { useLibraryStore } from './features/library/library.store';
 import { useAudioStore } from './features/audio/audio.store';
+import { useThemeStore } from './features/reader/theme.store';
+import { THEMES } from './features/reader/themes';
 import Sidebar from './features/library/Sidebar';
 import BookHeader from './features/reader/BookHeader';
 import ChapterRenderer from './features/reader/ChapterRenderer';
 import AudioPlayer from './features/audio/AudioPlayer';
 
 function EmptyState() {
+  const theme = THEMES[useThemeStore((s) => s.themeId)];
   return (
     <div className="h-full flex items-center justify-center">
       <div className="text-center select-none">
-        <svg viewBox="0 0 64 64" fill="none" className="w-16 h-16 mx-auto mb-4 text-slate-700">
+        <svg viewBox="0 0 64 64" fill="none" className="w-16 h-16 mx-auto mb-4" style={{ color: theme.chromeBorder }}>
           <rect x="8"  y="6"  width="36" height="48" rx="3" fill="currentColor" opacity="0.4" />
           <rect x="4"  y="6"  width="6"  height="48" rx="2" fill="currentColor" opacity="0.6" />
           <rect x="20" y="10" width="20" height="2"  rx="1" fill="currentColor" opacity="0.5" />
@@ -18,8 +21,8 @@ function EmptyState() {
           <rect x="16" y="28" width="36" height="48" rx="3" fill="currentColor" opacity="0.25" />
           <rect x="12" y="28" width="6"  height="48" rx="2" fill="currentColor" opacity="0.35" />
         </svg>
-        <p className="text-slate-400 font-medium">No book selected</p>
-        <p className="text-slate-600 text-sm mt-1">Open an EPUB from the sidebar</p>
+        <p className="font-medium" style={{ color: theme.chromeText }}>No book selected</p>
+        <p className="text-sm mt-1" style={{ color: theme.chromeTextMuted }}>Open an EPUB from the sidebar</p>
       </div>
     </div>
   );
@@ -36,6 +39,9 @@ export default function App() {
   const setTracks    = useAudioStore((s) => s.setTracks);
   const audioTracks  = useAudioStore((s) => s.tracks);
   const showPlayer   = audioTracks.length > 0;
+
+  const themeId = useThemeStore((s) => s.themeId);
+  const theme   = THEMES[themeId];
 
   const showReader = selectedBook !== null && selectedChapterPath !== null;
 
@@ -102,6 +108,7 @@ export default function App() {
         <Sidebar />
         <main
           className={`flex-1 min-w-0 ${showReader ? 'overflow-hidden flex flex-col' : 'overflow-y-auto'}`}
+          style={{ background: theme.bg }}
         >
           {!selectedBook && <EmptyState />}
           {selectedBook && !selectedChapterPath && <BookHeader entry={selectedBook} />}
