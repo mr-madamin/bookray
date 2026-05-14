@@ -31,7 +31,7 @@ export default function TrackList() {
         return (
           <li key={track.id}>
             <button
-              onClick={() => goToTrack(i, true)}
+              onClick={() => goToTrack(i, isPlaying)}
               className={`w-full text-left px-3 py-2 rounded-lg flex items-center gap-2.5 transition-colors ${
                 active
                   ? 'bg-blue-500/15 text-blue-300'
