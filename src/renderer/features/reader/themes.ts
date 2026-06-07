@@ -1,4 +1,4 @@
-export type ThemeId = 'dark' | 'calm' | 'focus';
+export type ThemeId = 'dark' | 'sepia' | 'paper';
 
 export interface Theme {
   id: ThemeId;
@@ -38,9 +38,9 @@ export const THEMES: Record<ThemeId, Theme> = {
     chromeTextMuted: '#475569',
     chromeBtnHover: '#1e293b',
   },
-  calm: {
-    id: 'calm',
-    name: 'Calm',
+  sepia: {
+    id: 'sepia',
+    name: 'Sepia',
     bg: '#f5ede0',
     text: '#3d2a18',
     heading: '#2b1d0e',
@@ -55,9 +55,9 @@ export const THEMES: Record<ThemeId, Theme> = {
     chromeTextMuted: '#a08060',
     chromeBtnHover: '#ddd0bc',
   },
-  focus: {
-    id: 'focus',
-    name: 'Focus',
+  paper: {
+    id: 'paper',
+    name: 'Paper',
     bg: '#faf9f5',
     text: '#1a1a1a',
     heading: '#111111',
