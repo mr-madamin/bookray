@@ -206,7 +206,7 @@ export default function AudioPlayer() {
             onClick={() => setRate(speed)}
             className="px-2 py-1 text-xs rounded-md font-medium transition-colors cursor-pointer"
             style={playbackRate === speed
-              ? { background: '#3b82f6', color: '#fff' }
+              ? { background: theme.chromeText, color: theme.chromeBg }
               : { color: theme.chromeText }}
             onMouseEnter={(e) => { if (playbackRate !== speed) (e.currentTarget as HTMLButtonElement).style.color = theme.heading; }}
             onMouseLeave={(e) => { if (playbackRate !== speed) (e.currentTarget as HTMLButtonElement).style.color = theme.chromeText; }}
