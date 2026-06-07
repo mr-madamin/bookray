@@ -10,7 +10,7 @@ Electron desktop app for reading EPUB books.
 | Renderer     | React 19 + Vite + Tailwind v4             |
 | State        | Zustand 5                                 |
 | Main/Preload | TypeScript → CommonJS via tsc             |
-| EPUB parsing | Custom ZIP + OPF parser (no dependencies) |
+| EPUB parsing | Custom ZIP parser + OPF parsing via @xmldom/xmldom |
 
 ## Development
 
