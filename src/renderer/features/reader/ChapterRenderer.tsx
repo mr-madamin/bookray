@@ -311,11 +311,12 @@ interface PaginationBarProps {
   total: number;
   twoPage: boolean;
   theme: Theme;
+  bookProgress: number;
   onPrev: () => void;
   onNext: () => void;
 }
 
-function PaginationBar({ page, total, twoPage, theme, onPrev, onNext }: PaginationBarProps) {
+function PaginationBar({ page, total, twoPage, theme, bookProgress, onPrev, onNext }: PaginationBarProps) {
   return (
     <div
       className="flex items-center justify-between px-6 py-2 border-t shrink-0 select-none"
@@ -339,6 +340,8 @@ function PaginationBar({ page, total, twoPage, theme, onPrev, onNext }: Paginati
         <span style={{ color: theme.chromeText }}>{page + 1}</span>
         <span className="mx-1" style={{ color: theme.chromeBorder }}>/</span>
         {total}
+        <span className="mx-2" style={{ color: theme.chromeBorder }}>·</span>
+        <span style={{ color: theme.chromeText }}>{bookProgress}%</span>
       </span>
       <button
         onClick={onNext}
@@ -681,16 +684,25 @@ export default function ChapterRenderer({ entry, chapterPath }: Props) {
         )}
       </div>
 
-      {srcdoc !== null && (
-        <PaginationBar
-          page={page}
-          total={totalPages}
-          twoPage={twoPage}
-          theme={theme}
-          onPrev={() => goToPage(pageRef.current - 1)}
-          onNext={() => goToPage(pageRef.current + 1)}
-        />
-      )}
+      {srcdoc !== null && (() => {
+        const linearSpine = entry.book.spine.filter((c) => c.linear);
+        const chapterIdx = linearSpine.findIndex((c) => c.path === chapterPath);
+        const pageFrac = totalPages > 1 ? page / totalPages : 0;
+        const bookProgress = linearSpine.length > 0 && chapterIdx >= 0
+          ? Math.round(((chapterIdx + pageFrac) / linearSpine.length) * 100)
+          : 0;
+        return (
+          <PaginationBar
+            page={page}
+            total={totalPages}
+            twoPage={twoPage}
+            theme={theme}
+            bookProgress={bookProgress}
+            onPrev={() => goToPage(pageRef.current - 1)}
+            onNext={() => goToPage(pageRef.current + 1)}
+          />
+        );
+      })()}
     </div>
   );
 }
