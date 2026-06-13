@@ -33,7 +33,7 @@ export default function BookListItem({ entry }: Props) {
       onClick={() => selectBook(entry.id)}
       className="w-full text-left px-2 py-2 rounded-lg flex gap-3 items-center transition-colors border"
       style={isSelected
-        ? { background: 'rgba(59,130,246,0.1)', borderColor: 'rgba(59,130,246,0.25)' }
+        ? { background: theme.selectionBg, borderColor: theme.selectionBorder }
         : { borderColor: 'transparent' }}
       onMouseEnter={(e) => { if (!isSelected) (e.currentTarget as HTMLButtonElement).style.background = theme.chromeBtnHover; }}
       onMouseLeave={(e) => { if (!isSelected) (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
@@ -49,7 +49,7 @@ export default function BookListItem({ entry }: Props) {
       <div className="min-w-0 flex-1">
         <p
           className="text-sm font-medium truncate leading-snug"
-          style={{ color: isSelected ? '#60a5fa' : theme.chromeText }}
+          style={{ color: isSelected ? theme.selectionText : theme.chromeText }}
         >
           {title}
         </p>

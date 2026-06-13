@@ -59,9 +59,9 @@ export default function ChapterList({ book, selectedPath, onSelect }: Props) {
             className="w-full text-left rounded px-2 py-1.5 text-xs leading-snug transition-colors border-l-2 cursor-pointer"
             style={{
               paddingLeft: `${0.5 + entry.depth * 0.75}rem`,
-              background: isSelected ? 'rgba(59,130,246,0.1)' : 'transparent',
-              color: isSelected ? '#60a5fa' : theme.chromeText,
-              borderColor: isSelected ? '#3b82f6' : 'transparent',
+              background: isSelected ? theme.selectionBg : 'transparent',
+              color: isSelected ? theme.selectionText : theme.chromeText,
+              borderColor: isSelected ? theme.selectionBorder : 'transparent',
             }}
             onMouseEnter={(e) => { if (!isSelected) (e.currentTarget as HTMLButtonElement).style.background = theme.chromeBtnHover; }}
             onMouseLeave={(e) => { if (!isSelected) (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}

@@ -18,6 +18,10 @@ export interface Theme {
   chromeText: string;
   chromeTextMuted: string;
   chromeBtnHover: string;
+  // Selection state (library items, chapter list)
+  selectionBg: string;
+  selectionBorder: string;
+  selectionText: string;
 }
 
 export const THEMES: Record<ThemeId, Theme> = {
@@ -37,6 +41,9 @@ export const THEMES: Record<ThemeId, Theme> = {
     chromeText: '#94a3b8',
     chromeTextMuted: '#475569',
     chromeBtnHover: '#1e293b',
+    selectionBg: 'rgba(96,165,250,0.1)',
+    selectionBorder: 'rgba(96,165,250,0.3)',
+    selectionText: '#60a5fa',
   },
   sepia: {
     id: 'sepia',
@@ -54,6 +61,9 @@ export const THEMES: Record<ThemeId, Theme> = {
     chromeText: '#7a5a42',
     chromeTextMuted: '#a08060',
     chromeBtnHover: '#ddd0bc',
+    selectionBg: 'rgba(139,94,60,0.1)',
+    selectionBorder: 'rgba(139,94,60,0.35)',
+    selectionText: '#8b5e3c',
   },
   paper: {
     id: 'paper',
@@ -71,6 +81,9 @@ export const THEMES: Record<ThemeId, Theme> = {
     chromeText: '#55524a',
     chromeTextMuted: '#9c9890',
     chromeBtnHover: '#e0ddd6',
+    selectionBg: 'rgba(37,99,235,0.08)',
+    selectionBorder: 'rgba(37,99,235,0.25)',
+    selectionText: '#2563eb',
   },
 };
 
