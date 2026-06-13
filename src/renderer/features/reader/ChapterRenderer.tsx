@@ -124,8 +124,10 @@ function buildThemeCSS({ fontSize, lineHeight }: ReaderSettings, theme: Theme): 
       line-height: ${lineHeight} !important;
       font-family: Georgia, 'Times New Roman', serif;
     }
+    body * { color: ${theme.text} !important; }
     h1, h2, h3, h4, h5, h6 { color: ${theme.heading} !important; line-height: 1.3; }
-    a, a:hover, a:visited, a:active, a:focus { color: ${theme.link}; }
+    a, a:visited { color: ${theme.link} !important; }
+    *:hover { color: inherit !important; }
     img, svg { max-width: 100%; height: auto; display: block; margin: 1em auto; }
     p { margin-top: 0; margin-bottom: 0.75em; }
     blockquote {
