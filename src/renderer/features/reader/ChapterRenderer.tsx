@@ -125,7 +125,7 @@ function buildThemeCSS({ fontSize, lineHeight }: ReaderSettings, theme: Theme): 
       font-family: Georgia, 'Times New Roman', serif;
     }
     h1, h2, h3, h4, h5, h6 { color: ${theme.heading} !important; line-height: 1.3; }
-    a { color: ${theme.link}; }
+    a, a:hover, a:visited, a:active, a:focus { color: ${theme.link}; }
     img, svg { max-width: 100%; height: auto; display: block; margin: 1em auto; }
     p { margin-top: 0; margin-bottom: 0.75em; }
     blockquote {

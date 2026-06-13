@@ -208,8 +208,6 @@ export default function AudioPlayer() {
             style={playbackRate === speed
               ? { background: theme.chromeText, color: theme.chromeBg }
               : { color: theme.chromeText }}
-            onMouseEnter={(e) => { if (playbackRate !== speed) (e.currentTarget as HTMLButtonElement).style.color = theme.heading; }}
-            onMouseLeave={(e) => { if (playbackRate !== speed) (e.currentTarget as HTMLButtonElement).style.color = theme.chromeText; }}
             title={`${speed}× speed`}
           >
             {speed === 1 ? '1×' : `${speed}×`}
