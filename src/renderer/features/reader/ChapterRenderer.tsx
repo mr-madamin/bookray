@@ -390,9 +390,6 @@ export default function ChapterRenderer({ entry, chapterPath }: Props) {
   const totalRef = useRef(1);
   const stepWidthRef = useRef(0);
 
-  // Drag tracking for swipe gestures
-  const dragStartX = useRef<number | null>(null);
-
   // Progress fetched from DB in parallel with chapter content; consumed once by initPagination.
   const pendingFractionRef = useRef<number | null>(null);
 
@@ -573,60 +570,6 @@ export default function ChapterRenderer({ entry, chapterPath }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── Swipe / drag handlers ──────────────────────────────────────────────────
-  //
-  // A full-width overlay intercepts all pointer events so we get swipe gestures
-  // even when the pointer is over the iframe. setPointerCapture keeps tracking
-  // the pointer even if it leaves the element mid-drag.
-  //
-  // During drag, we disable the body transition and move it live with the finger.
-  // On release, we re-enable the transition and snap to the nearest page.
-  //
-  // Short taps (< 8px travel) are treated as navigation clicks:
-  //   left half → previous, right half → next.
-
-  function onOverlayPointerDown(e: React.PointerEvent<HTMLDivElement>) {
-    (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId);
-    dragStartX.current = e.clientX;
-  }
-
-  function onOverlayPointerMove(e: React.PointerEvent<HTMLDivElement>) {
-    if (dragStartX.current === null) return;
-    const delta = e.clientX - dragStartX.current;
-    const col = iframeRef.current ? getColEl(iframeRef.current) : null;
-    if (!col) return;
-    col.style.transition = 'none';
-    col.style.transform = `translateX(${-pageRef.current * stepWidthRef.current + delta}px)`;
-  }
-
-  function onOverlayPointerUp(e: React.PointerEvent<HTMLDivElement>) {
-    if (dragStartX.current === null) return;
-    const delta = e.clientX - dragStartX.current;
-    dragStartX.current = null;
-
-    const col = iframeRef.current ? getColEl(iframeRef.current) : null;
-    if (col) col.style.transition = ''; // restore CSS transition
-
-    if (Math.abs(delta) < 8) {
-      const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
-      if (e.clientX < rect.left + rect.width / 2) goToPage(pageRef.current - 1);
-      else goToPage(pageRef.current + 1);
-    } else if (delta < -40) {
-      goToPage(pageRef.current + 1);
-    } else if (delta > 40) {
-      goToPage(pageRef.current - 1);
-    } else {
-      goToPage(pageRef.current);
-    }
-  }
-
-  function onOverlayPointerCancel() {
-    dragStartX.current = null;
-    const col = iframeRef.current ? getColEl(iframeRef.current) : null;
-    if (col) col.style.transition = '';
-    goToPage(pageRef.current);
-  }
-
   // ── Settings ───────────────────────────────────────────────────────────────
 
   function adjustFontSize(delta: number) {
@@ -658,29 +601,13 @@ export default function ChapterRenderer({ entry, chapterPath }: Props) {
           </div>
         )}
         {srcdoc !== null && (
-          <>
-            {/* Security: sandbox without allow-scripts — no JS runs inside.
-                allow-same-origin lets the parent access contentDocument for
-                live theme injection and pagination. */}
-            <iframe
-              ref={iframeRef}
-              srcDoc={srcdoc}
-              sandbox="allow-same-origin"
-              className="absolute inset-0 w-full h-full border-none bg-slate-950"
-              title="Chapter content"
-            />
-            {/* Overlay captures all pointer events for swipe/tap navigation.
-                This intentionally prevents clicks reaching the iframe — internal
-                EPUB links are disabled (external hrefs stripped), and chapter
-                navigation is handled via ChapterList in the sidebar. */}
-            <div
-              className="absolute inset-0 z-10 cursor-pointer"
-              onPointerDown={onOverlayPointerDown}
-              onPointerMove={onOverlayPointerMove}
-              onPointerUp={onOverlayPointerUp}
-              onPointerCancel={onOverlayPointerCancel}
-            />
-          </>
+          <iframe
+            ref={iframeRef}
+            srcDoc={srcdoc}
+            sandbox="allow-same-origin"
+            className="absolute inset-0 w-full h-full border-none bg-slate-950"
+            title="Chapter content"
+          />
         )}
       </div>
 
