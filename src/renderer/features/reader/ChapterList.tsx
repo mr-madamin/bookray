@@ -4,8 +4,13 @@ import { THEMES } from './themes';
 
 interface ChapterEntry {
   path: string;
+  fragment?: string;
   label: string;
   depth: number;
+}
+
+function entryKey(e: ChapterEntry): string {
+  return e.fragment ? `${e.path}#${e.fragment}` : e.path;
 }
 
 function flattenToc(
@@ -15,7 +20,7 @@ function flattenToc(
 ): ChapterEntry[] {
   for (const item of items) {
     if (item.label.trim()) {
-      out.push({ path: item.path, label: item.label.trim(), depth });
+      out.push({ path: item.path, fragment: item.fragment, label: item.label.trim(), depth });
     }
     if (item.children.length > 0) {
       flattenToc(item.children, depth + 1, out);
@@ -50,11 +55,11 @@ export default function ChapterList({ book, selectedPath, onSelect }: Props) {
   return (
     <div className="space-y-px">
       {entries.map((entry, i) => {
-        const isSelected = selectedPath === entry.path;
+        const isSelected = selectedPath === entryKey(entry);
         return (
           <button
-            key={`${entry.path}-${i}`}
-            onClick={() => onSelect(entry.path)}
+            key={entryKey(entry)}
+            onClick={() => onSelect(entryKey(entry))}
             title={entry.label}
             className="w-full text-left rounded px-2 py-1.5 text-xs leading-snug transition-colors border-l-2 cursor-pointer"
             style={{

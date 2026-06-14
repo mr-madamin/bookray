@@ -128,6 +128,7 @@ function buildThemeCSS({ fontSize, lineHeight }: ReaderSettings, theme: Theme): 
     h1, h2, h3, h4, h5, h6 { color: ${theme.heading} !important; line-height: 1.3; }
     a, a:visited { color: ${theme.link} !important; }
     *:hover { color: inherit !important; }
+    h1:hover, h2:hover, h3:hover, h4:hover, h5:hover, h6:hover { color: ${theme.heading} !important; }
     img, svg { max-width: 100%; height: auto; display: block; margin: 1em auto; }
     p { margin-top: 0; margin-bottom: 0.75em; }
     blockquote {
@@ -370,6 +371,9 @@ interface Props {
 }
 
 export default function ChapterRenderer({ entry, chapterPath }: Props) {
+  // chapterPath may include a #fragment for sidebar selection uniqueness — strip it for content fetching
+  const basePath = chapterPath.includes('#') ? chapterPath.split('#')[0] : chapterPath;
+
   const containerRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
@@ -461,7 +465,7 @@ export default function ChapterRenderer({ entry, chapterPath }: Props) {
     applyPage(iframe, clamped, stepWidthRef.current);
     pageRef.current = clamped;
     setPage(clamped);
-    savePos(entry.id, chapterPath, clamped, totalRef.current);
+    savePos(entry.id, basePath, clamped, totalRef.current);
   }
 
   // ── Fetch chapter ──────────────────────────────────────────────────────────
@@ -474,15 +478,15 @@ export default function ChapterRenderer({ entry, chapterPath }: Props) {
     syncState(0, 1, 0, false);
 
     Promise.all([
-      window.bookray.getChapterContent(entry.filePath, chapterPath),
+      window.bookray.getChapterContent(entry.filePath, basePath),
       window.bookray.progressGet(entry.id),
     ])
       .then(([{ xhtml, assets, stylesheets }, progress]) => {
         if (cancelled) return;
         // Store fraction for initPagination to consume after the iframe loads.
         pendingFractionRef.current =
-          progress?.chapterPath === chapterPath ? progress.pageFraction : null;
-        setSrcdoc(buildSrcdoc(xhtml, assets, stylesheets, chapterPath, settings, theme));
+          progress?.chapterPath === basePath ? progress.pageFraction : null;
+        setSrcdoc(buildSrcdoc(xhtml, assets, stylesheets, basePath, settings, theme));
       })
       .catch((err: unknown) => {
         if (cancelled) return;
