@@ -248,7 +248,7 @@ function ReaderControls({ settings, theme, onFontSize, onLineHeight, onTheme }: 
       className="flex items-center gap-3 px-4 py-2 border-b shrink-0 select-none"
       style={{ background: theme.chromeBg, borderColor: theme.chromeBorder }}
     >
-      <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: theme.chromeTextMuted }}>Text</span>
+      <span className="text-xs" style={{ color: theme.chromeTextMuted }}>Text</span>
       <div className="flex items-center gap-1">
         <button
           onClick={() => onFontSize(-1)}
