@@ -1,6 +1,6 @@
 # BookRay
 
-Electron desktop app for reading EPUB books.
+Electron desktop app for reading EPUB books. Ships with three reading themes: Dark, Sepia, and Paper.
 
 ## Tech stack
 
