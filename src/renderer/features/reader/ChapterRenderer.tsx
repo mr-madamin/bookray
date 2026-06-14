@@ -619,7 +619,7 @@ export default function ChapterRenderer({ entry, chapterPath }: Props) {
 
       {srcdoc !== null && (() => {
         const linearSpine = entry.book.spine.filter((c) => c.linear);
-        const chapterIdx = linearSpine.findIndex((c) => c.path === chapterPath);
+        const chapterIdx = linearSpine.findIndex((c) => c.path === basePath);
         const pageFrac = totalPages > 1 ? page / totalPages : 0;
         const bookProgress = linearSpine.length > 0 && chapterIdx >= 0
           ? Math.round(((chapterIdx + pageFrac) / linearSpine.length) * 100)
