@@ -122,7 +122,7 @@ function buildThemeCSS({ fontSize, lineHeight }: ReaderSettings, theme: Theme): 
       color: ${theme.text} !important;
       font-size: ${fontSize}px !important;
       line-height: ${lineHeight} !important;
-      font-family: Georgia, 'Times New Roman', serif;
+      font-family: 'Iowan Old Style', Georgia, Palatino, serif;
     }
     body * { color: ${theme.text} !important; }
     h1, h2, h3, h4, h5, h6 { color: ${theme.heading} !important; line-height: 1.3; }
