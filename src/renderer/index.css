@@ -1,1 +1,8 @@
 @import 'tailwindcss';
+
+/* Prevent horizontal trackpad swipes from triggering history back/forward
+   navigation anywhere in the app; page-turn swipes are handled in JS. */
+html,
+body {
+  overscroll-behavior: none;
+}

@@ -87,10 +87,14 @@ function getLayout(containerWidth: number) {
 
 function buildPagerCSS(): string {
   return `
-    html { height: 100%; overflow: hidden; }
+    /* overscroll-behavior:none stops Chromium from hijacking horizontal
+       trackpad swipes as history back/forward navigation, so they arrive as
+       cancelable wheel events our swipe handler can read. */
+    html { height: 100%; overflow: hidden; overscroll-behavior: none; }
     body {
       height: 100% !important;
       overflow: hidden !important;
+      overscroll-behavior: none !important;
       max-width: none !important;
       margin: 0 !important;
       padding: 0 !important;
@@ -575,6 +579,72 @@ export default function ChapterRenderer({ entry, chapterPath }: Props) {
     return () => window.removeEventListener('keydown', onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // ── Horizontal swipe navigation ─────────────────────────────────────────────
+  //
+  // Trackpad two-finger sideways swipe and a sideways mouse swipe (Magic Mouse /
+  // tilt-wheel) both surface as `wheel` events carrying horizontal deltaX. We
+  // listen on the iframe's own document — wheel events inside the sandboxed
+  // iframe do not bubble to the parent — and preventDefault to suppress Electron's
+  // built-in history back/forward swipe.
+  //
+  // Model: accumulate deltaX until it crosses a threshold, turn one page, then
+  // lock until the gesture goes idle. The lock stops the inertial momentum tail
+  // (which keeps firing wheel events after the fingers lift) from flipping
+  // through several pages at once — one deliberate swipe turns one page.
+
+  useEffect(() => {
+    const iframe = iframeRef.current;
+    if (!iframe || srcdoc === null) return;
+
+    const THRESHOLD = 40; // px of accumulated horizontal travel to turn a page
+    const IDLE_MS = 120;  // no wheel events for this long = gesture ended
+    let accum = 0;
+    let locked = false;
+    let idle: ReturnType<typeof setTimeout>;
+
+    function onWheel(e: WheelEvent) {
+      // Horizontal intent only — let vertical/diagonal scroll pass through.
+      if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
+      e.preventDefault();
+
+      clearTimeout(idle);
+      idle = setTimeout(() => { locked = false; accum = 0; }, IDLE_MS);
+      if (locked) return;
+
+      accum += e.deltaX;
+      if (accum >= THRESHOLD) {
+        goToPage(pageRef.current + 1);
+        locked = true;
+        accum = 0;
+      } else if (accum <= -THRESHOLD) {
+        goToPage(pageRef.current - 1);
+        locked = true;
+        accum = 0;
+      }
+    }
+
+    function attachTo(doc: Document | null | undefined) {
+      if (!doc) return;
+      doc.removeEventListener('wheel', onWheel);
+      doc.addEventListener('wheel', onWheel, { passive: false });
+    }
+
+    // Attach to whatever is loaded right now, and re-attach on every subsequent
+    // load. Setting srcDoc swaps in a brand-new document, so a one-shot attach
+    // bound to the old (or about:blank) document would be lost when the real
+    // chapter finishes loading — hence re-attaching on each `load`.
+    attachTo(iframe.contentDocument);
+    function onLoad() { attachTo(iframe!.contentDocument); }
+    iframe.addEventListener('load', onLoad);
+
+    return () => {
+      clearTimeout(idle);
+      iframe.removeEventListener('load', onLoad);
+      iframe.contentDocument?.removeEventListener('wheel', onWheel);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [srcdoc]);
 
   // ── Settings ───────────────────────────────────────────────────────────────
 
