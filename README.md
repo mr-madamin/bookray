@@ -2,6 +2,11 @@
 
 Electron desktop app for reading EPUB books. Ships with three reading themes: Dark, Sepia, and Paper.
 
+## Where to find free books
+
+- [Project Gutenberg](https://www.gutenberg.org) — over 70,000 public-domain ebooks, downloadable as EPUB.
+- [LibriVox](https://librivox.org) — free public-domain audiobooks read by volunteers.
+
 ## Tech stack
 
 | Layer        | Technology                                |
