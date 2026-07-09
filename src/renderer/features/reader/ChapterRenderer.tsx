@@ -145,8 +145,9 @@ function buildThemeCSS(
     body * { color: ${theme.text} !important; }
     h1, h2, h3, h4, h5, h6 { color: ${theme.heading} !important; line-height: 1.3; }
     a, a:visited { color: ${theme.link} !important; }
-    *:hover { color: inherit !important; }
+    *:hover { color: ${theme.text} !important; }
     h1:hover, h2:hover, h3:hover, h4:hover, h5:hover, h6:hover { color: ${theme.heading} !important; }
+    a:hover, a:visited:hover { color: ${theme.link} !important; }
     img, svg { max-width: 100%; height: auto; display: block; margin: 1em auto; }
     p { margin-top: 0; margin-bottom: 0.75em; }
     blockquote {
