@@ -111,7 +111,7 @@ function buildPagerCSS(): string {
       will-change: transform;
       transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
     }
-    #bookray-pg { padding: 2.5rem 3.5rem; }
+    #bookray-pg { padding: 3.75rem 3.5rem; }
     img, figure, table, pre { break-inside: avoid; page-break-inside: avoid; }
     p, li { orphans: 2; widows: 2; }
   `.trim();
@@ -245,7 +245,7 @@ function ReaderControls({ settings, theme, onFontSize, onLineHeight, onTheme }: 
   const { setTheme } = useThemeStore();
   return (
     <div
-      className="flex items-center gap-3 px-4 py-2 border-b shrink-0 select-none"
+      className="flex items-center gap-3 px-4 py-3 border-b shrink-0 select-none"
       style={{ background: theme.chromeBg, borderColor: theme.chromeBorder }}
     >
       <span className="text-xs" style={{ color: theme.chromeTextMuted }}>Text</span>
@@ -326,7 +326,7 @@ interface PaginationBarProps {
 function PaginationBar({ page, total, twoPage, theme, bookProgress, onPrev, onNext }: PaginationBarProps) {
   return (
     <div
-      className="flex items-center justify-between px-6 py-2 border-t shrink-0 select-none"
+      className="flex items-center justify-between px-6 py-3 border-t shrink-0 select-none"
       style={{ background: theme.chromeBg, borderColor: theme.chromeBorder }}
     >
       <button
