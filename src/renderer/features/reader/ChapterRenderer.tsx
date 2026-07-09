@@ -655,7 +655,7 @@ export default function ChapterRenderer({ entry, chapterPath }: Props) {
   function adjustLineHeight(delta: number) {
     setSettings((s) => ({
       ...s,
-      lineHeight: Math.max(1.2, Math.min(2.5, parseFloat((s.lineHeight + delta).toFixed(1)))),
+      lineHeight: Math.max(1.2, Math.min(2, parseFloat((s.lineHeight + delta).toFixed(1)))),
     }));
   }
 
