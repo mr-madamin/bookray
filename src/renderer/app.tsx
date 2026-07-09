@@ -92,7 +92,7 @@ export default function App() {
       onDrop={handleDrop}
     >
       {isDragging && (
-        <div className="absolute inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center pointer-events-none">
+        <div className="absolute inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center">
           <div className="border-2 border-dashed border-blue-500 rounded-2xl px-16 py-12 flex flex-col items-center gap-3">
             <svg viewBox="0 0 24 24" fill="none" className="w-10 h-10 text-blue-400">
               <path d="M12 16V8m0 0-3 3m3-3 3 3" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
