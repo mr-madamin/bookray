@@ -11,7 +11,7 @@ interface ReaderSettings {
   lineHeight: number;
 }
 
-const DEFAULT_SETTINGS: ReaderSettings = { fontSize: 17, lineHeight: 1.75 };
+const DEFAULT_SETTINGS: ReaderSettings = { fontSize: 17, lineHeight: 1.5 };
 
 // Width threshold for switching to a two-column book spread.
 const TWO_PAGE_MIN_WIDTH = 900;
@@ -23,7 +23,12 @@ const TWO_PAGE_MIN_WIDTH = 900;
 // The fraction is fetched in parallel with chapter content and stored in
 // pendingFractionRef so initPagination can use it synchronously after rAF.
 
-function savePos(bookId: string, chapterPath: string, page: number, total: number) {
+function savePos(
+  bookId: string,
+  chapterPath: string,
+  page: number,
+  total: number,
+) {
   if (total <= 1) return;
   const fraction = page / total;
   // Fire-and-forget — navigation must not wait on the DB write.
@@ -46,10 +51,16 @@ function savePos(bookId: string, chapterPath: string, page: number, total: numbe
 // The +0.5 epsilon guards against sub-pixel rounding (e.g. 899.8 → 1 not 0).
 
 function getColEl(iframe: HTMLIFrameElement): HTMLElement | null {
-  return (iframe.contentDocument?.getElementById('bookray-col') as HTMLElement) ?? null;
+  return (
+    (iframe.contentDocument?.getElementById('bookray-col') as HTMLElement) ??
+    null
+  );
 }
 
-function measureTotalPages(iframe: HTMLIFrameElement, stepWidth: number): number {
+function measureTotalPages(
+  iframe: HTMLIFrameElement,
+  stepWidth: number,
+): number {
   const col = getColEl(iframe);
   if (!col || stepWidth === 0) return 1;
   return Math.max(1, Math.round((col.scrollWidth + 0.5) / stepWidth));
@@ -117,7 +128,10 @@ function buildPagerCSS(): string {
   `.trim();
 }
 
-function buildThemeCSS({ fontSize, lineHeight }: ReaderSettings, theme: Theme): string {
+function buildThemeCSS(
+  { fontSize, lineHeight }: ReaderSettings,
+  theme: Theme,
+): string {
   return `
     *, *::before, *::after { box-sizing: border-box; }
     html { background: ${theme.bg} !important; }
@@ -150,8 +164,14 @@ function buildThemeCSS({ fontSize, lineHeight }: ReaderSettings, theme: Theme): 
 
 function resolveRelativePath(basePath: string, href: string): string {
   let decoded = href;
-  try { decoded = decodeURIComponent(href); } catch { /* keep original */ }
-  const dir = basePath.includes('/') ? basePath.slice(0, basePath.lastIndexOf('/')) : '';
+  try {
+    decoded = decodeURIComponent(href);
+  } catch {
+    /* keep original */
+  }
+  const dir = basePath.includes('/')
+    ? basePath.slice(0, basePath.lastIndexOf('/'))
+    : '';
   const combined = dir ? `${dir}/${decoded}` : decoded;
   const parts: string[] = [];
   for (const seg of combined.split('/')) {
@@ -191,12 +211,20 @@ function buildSrcdoc(
   });
 
   // 2. Replace binary asset src= attributes
-  html = html.replace(/\bsrc=(["'])([^"']+)\1/gi, (match, q: string, url: string) => {
-    if (url.startsWith('data:') || url.startsWith('http') || url.startsWith('//')) return match;
-    const zipPath = resolveRelativePath(chapterPath, url);
-    const dataUrl = assets[zipPath];
-    return dataUrl ? `src=${q}${dataUrl}${q}` : match;
-  });
+  html = html.replace(
+    /\bsrc=(["'])([^"']+)\1/gi,
+    (match, q: string, url: string) => {
+      if (
+        url.startsWith('data:') ||
+        url.startsWith('http') ||
+        url.startsWith('//')
+      )
+        return match;
+      const zipPath = resolveRelativePath(chapterPath, url);
+      const dataUrl = assets[zipPath];
+      return dataUrl ? `src=${q}${dataUrl}${q}` : match;
+    },
+  );
 
   // 3. Strip scripts and event handlers
   html = html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '');
@@ -241,55 +269,97 @@ interface ControlsProps {
   onTheme: (id: string) => void;
 }
 
-function ReaderControls({ settings, theme, onFontSize, onLineHeight, onTheme }: ControlsProps) {
+function ReaderControls({
+  settings,
+  theme,
+  onFontSize,
+  onLineHeight,
+  onTheme,
+}: ControlsProps) {
   const { setTheme } = useThemeStore();
   return (
     <div
       className="flex items-center gap-3 px-4 py-3 border-b shrink-0 select-none"
       style={{ background: theme.chromeBg, borderColor: theme.chromeBorder }}
     >
-      <span className="text-xs" style={{ color: theme.chromeTextMuted }}>Text</span>
+      <span className="text-xs" style={{ color: theme.chromeTextMuted }}>
+        Text
+      </span>
       <div className="flex items-center gap-1">
         <button
           onClick={() => onFontSize(-1)}
           className="h-7 rounded px-2 text-xs transition-colors"
           style={{ color: theme.chromeText }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = theme.chromeBtnHover)}
-          onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+          onMouseEnter={(e) =>
+            (e.currentTarget.style.background = theme.chromeBtnHover)
+          }
+          onMouseLeave={(e) =>
+            (e.currentTarget.style.background = 'transparent')
+          }
           title="Smaller"
-        >A−</button>
-        <span className="text-xs tabular-nums w-7 text-center" style={{ color: theme.chromeTextMuted }}>{settings.fontSize}</span>
+        >
+          A−
+        </button>
+        <span
+          className="text-xs tabular-nums w-7 text-center"
+          style={{ color: theme.chromeTextMuted }}
+        >
+          {settings.fontSize}
+        </span>
         <button
           onClick={() => onFontSize(1)}
           className="h-7 rounded px-2 text-xs transition-colors"
           style={{ color: theme.chromeText }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = theme.chromeBtnHover)}
-          onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+          onMouseEnter={(e) =>
+            (e.currentTarget.style.background = theme.chromeBtnHover)
+          }
+          onMouseLeave={(e) =>
+            (e.currentTarget.style.background = 'transparent')
+          }
           title="Larger"
-        >A+</button>
+        >
+          A+
+        </button>
       </div>
       <div className="w-px h-4" style={{ background: theme.chromeBorder }} />
       <div className="flex items-center gap-1">
-        <span className="text-xs" style={{ color: theme.chromeTextMuted }}>Spacing</span>
+        <span className="text-xs" style={{ color: theme.chromeTextMuted }}>
+          Spacing
+        </span>
         <button
           onClick={() => onLineHeight(-0.1)}
           className="h-7 rounded px-2 text-xs transition-colors"
           style={{ color: theme.chromeText }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = theme.chromeBtnHover)}
-          onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+          onMouseEnter={(e) =>
+            (e.currentTarget.style.background = theme.chromeBtnHover)
+          }
+          onMouseLeave={(e) =>
+            (e.currentTarget.style.background = 'transparent')
+          }
           title="Tighter"
-        >−</button>
-        <span className="text-xs tabular-nums w-7 text-center" style={{ color: theme.chromeTextMuted }}>
+        >
+          −
+        </button>
+        <span
+          className="text-xs tabular-nums w-7 text-center"
+          style={{ color: theme.chromeTextMuted }}
+        >
           {settings.lineHeight.toFixed(1)}
         </span>
         <button
           onClick={() => onLineHeight(0.1)}
           className="h-7 rounded px-2 text-xs transition-colors"
           style={{ color: theme.chromeText }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = theme.chromeBtnHover)}
-          onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+          onMouseEnter={(e) =>
+            (e.currentTarget.style.background = theme.chromeBtnHover)
+          }
+          onMouseLeave={(e) =>
+            (e.currentTarget.style.background = 'transparent')
+          }
           title="Looser"
-        >+</button>
+        >
+          +
+        </button>
       </div>
       <div className="w-px h-4" style={{ background: theme.chromeBorder }} />
       {/* Theme swatches */}
@@ -297,12 +367,16 @@ function ReaderControls({ settings, theme, onFontSize, onLineHeight, onTheme }: 
         {THEME_IDS.map((id) => (
           <button
             key={id}
-            onClick={() => { setTheme(id); onTheme(id); }}
+            onClick={() => {
+              setTheme(id);
+              onTheme(id);
+            }}
             title={THEMES[id].name}
             className="w-4 h-4 rounded-full border-2 transition-transform hover:scale-110 cursor-pointer"
             style={{
               background: THEMES[id].bg,
-              borderColor: theme.id === id ? theme.chromeText : theme.chromeBorder,
+              borderColor:
+                theme.id === id ? theme.chromeText : theme.chromeBorder,
             }}
           />
         ))}
@@ -323,7 +397,15 @@ interface PaginationBarProps {
   onNext: () => void;
 }
 
-function PaginationBar({ page, total, twoPage, theme, bookProgress, onPrev, onNext }: PaginationBarProps) {
+function PaginationBar({
+  page,
+  total,
+  twoPage,
+  theme,
+  bookProgress,
+  onPrev,
+  onNext,
+}: PaginationBarProps) {
   return (
     <div
       className="flex items-center justify-between px-6 py-3 border-t shrink-0 select-none"
@@ -334,20 +416,40 @@ function PaginationBar({ page, total, twoPage, theme, bookProgress, onPrev, onNe
         disabled={page === 0}
         className="h-8 w-8 rounded flex items-center justify-center transition-colors disabled:opacity-25 disabled:cursor-not-allowed cursor-pointer"
         style={{ color: theme.chromeText }}
-        onMouseEnter={(e) => { if (page > 0) (e.currentTarget as HTMLButtonElement).style.background = theme.chromeBtnHover; }}
-        onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
+        onMouseEnter={(e) => {
+          if (page > 0)
+            (e.currentTarget as HTMLButtonElement).style.background =
+              theme.chromeBtnHover;
+        }}
+        onMouseLeave={(e) => {
+          (e.currentTarget as HTMLButtonElement).style.background =
+            'transparent';
+        }}
         title="Previous page (←)"
       >
         <svg viewBox="0 0 16 16" fill="none" className="w-4 h-4">
-          <path d="M10 12L6 8l4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          <path
+            d="M10 12L6 8l4-4"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
         </svg>
       </button>
-      <span className="text-xs tabular-nums" style={{ color: theme.chromeTextMuted }}>
+      <span
+        className="text-xs tabular-nums"
+        style={{ color: theme.chromeTextMuted }}
+      >
         {twoPage ? 'Spread' : 'Page'}{' '}
         <span style={{ color: theme.chromeText }}>{page + 1}</span>
-        <span className="mx-1" style={{ color: theme.chromeBorder }}>/</span>
+        <span className="mx-1" style={{ color: theme.chromeBorder }}>
+          /
+        </span>
         {total}
-        <span className="mx-2" style={{ color: theme.chromeBorder }}>·</span>
+        <span className="mx-2" style={{ color: theme.chromeBorder }}>
+          ·
+        </span>
         <span style={{ color: theme.chromeText }}>{bookProgress}%</span>
       </span>
       <button
@@ -355,12 +457,25 @@ function PaginationBar({ page, total, twoPage, theme, bookProgress, onPrev, onNe
         disabled={page >= total - 1}
         className="h-8 w-8 rounded flex items-center justify-center transition-colors disabled:opacity-25 disabled:cursor-not-allowed cursor-pointer"
         style={{ color: theme.chromeText }}
-        onMouseEnter={(e) => { if (page < total - 1) (e.currentTarget as HTMLButtonElement).style.background = theme.chromeBtnHover; }}
-        onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
+        onMouseEnter={(e) => {
+          if (page < total - 1)
+            (e.currentTarget as HTMLButtonElement).style.background =
+              theme.chromeBtnHover;
+        }}
+        onMouseLeave={(e) => {
+          (e.currentTarget as HTMLButtonElement).style.background =
+            'transparent';
+        }}
         title="Next page (→)"
       >
         <svg viewBox="0 0 16 16" fill="none" className="w-4 h-4">
-          <path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          <path
+            d="M6 4l4 4-4 4"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
         </svg>
       </button>
     </div>
@@ -376,13 +491,15 @@ interface Props {
 
 export default function ChapterRenderer({ entry, chapterPath }: Props) {
   // chapterPath may include a #fragment for sidebar selection uniqueness — strip it for content fetching
-  const basePath = chapterPath.includes('#') ? chapterPath.split('#')[0] : chapterPath;
+  const basePath = chapterPath.includes('#')
+    ? chapterPath.split('#')[0]
+    : chapterPath;
 
   const containerRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
-  const themeId  = useThemeStore((s) => s.themeId);
-  const theme    = THEMES[themeId];
+  const themeId = useThemeStore((s) => s.themeId);
+  const theme = THEMES[themeId];
 
   const [srcdoc, setSrcdoc] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -437,9 +554,10 @@ export default function ChapterRenderer({ entry, chapterPath }: Props) {
 
     const frac = pendingFractionRef.current;
     pendingFractionRef.current = null;
-    const restored = frac !== null
-      ? Math.min(total - 1, Math.max(0, Math.round(frac * total)))
-      : 0;
+    const restored =
+      frac !== null
+        ? Math.min(total - 1, Math.max(0, Math.round(frac * total)))
+        : 0;
 
     syncState(restored, total, stepWidth, tp);
     applyPage(iframe!, restored, stepWidth);
@@ -490,15 +608,21 @@ export default function ChapterRenderer({ entry, chapterPath }: Props) {
         // Store fraction for initPagination to consume after the iframe loads.
         pendingFractionRef.current =
           progress?.chapterPath === basePath ? progress.pageFraction : null;
-        setSrcdoc(buildSrcdoc(xhtml, assets, stylesheets, basePath, settings, theme));
+        setSrcdoc(
+          buildSrcdoc(xhtml, assets, stylesheets, basePath, settings, theme),
+        );
       })
       .catch((err: unknown) => {
         if (cancelled) return;
         setError(err instanceof Error ? err.message : String(err));
       })
-      .finally(() => { if (!cancelled) setLoading(false); });
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
     // settings excluded — theme changes go through contentDocument injection below
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entry.filePath, chapterPath]);
@@ -558,7 +682,10 @@ export default function ChapterRenderer({ entry, chapterPath }: Props) {
       timer = setTimeout(() => recheckPages(), 120);
     });
     ro.observe(container);
-    return () => { clearTimeout(timer); ro.disconnect(); };
+    return () => {
+      clearTimeout(timer);
+      ro.disconnect();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -598,7 +725,7 @@ export default function ChapterRenderer({ entry, chapterPath }: Props) {
     if (!iframe || srcdoc === null) return;
 
     const THRESHOLD = 40; // px of accumulated horizontal travel to turn a page
-    const IDLE_MS = 120;  // no wheel events for this long = gesture ended
+    const IDLE_MS = 120; // no wheel events for this long = gesture ended
     let accum = 0;
     let locked = false;
     let idle: ReturnType<typeof setTimeout>;
@@ -609,7 +736,10 @@ export default function ChapterRenderer({ entry, chapterPath }: Props) {
       e.preventDefault();
 
       clearTimeout(idle);
-      idle = setTimeout(() => { locked = false; accum = 0; }, IDLE_MS);
+      idle = setTimeout(() => {
+        locked = false;
+        accum = 0;
+      }, IDLE_MS);
       if (locked) return;
 
       accum += e.deltaX;
@@ -635,7 +765,9 @@ export default function ChapterRenderer({ entry, chapterPath }: Props) {
     // bound to the old (or about:blank) document would be lost when the real
     // chapter finishes loading — hence re-attaching on each `load`.
     attachTo(iframe.contentDocument);
-    function onLoad() { attachTo(iframe!.contentDocument); }
+    function onLoad() {
+      attachTo(iframe!.contentDocument);
+    }
     iframe.addEventListener('load', onLoad);
 
     return () => {
@@ -649,13 +781,19 @@ export default function ChapterRenderer({ entry, chapterPath }: Props) {
   // ── Settings ───────────────────────────────────────────────────────────────
 
   function adjustFontSize(delta: number) {
-    setSettings((s) => ({ ...s, fontSize: Math.max(12, Math.min(28, s.fontSize + delta)) }));
+    setSettings((s) => ({
+      ...s,
+      fontSize: Math.max(12, Math.min(28, s.fontSize + delta)),
+    }));
   }
 
   function adjustLineHeight(delta: number) {
     setSettings((s) => ({
       ...s,
-      lineHeight: Math.max(1.2, Math.min(2, parseFloat((s.lineHeight + delta).toFixed(1)))),
+      lineHeight: Math.max(
+        1.2,
+        Math.min(2, parseFloat((s.lineHeight + delta).toFixed(1))),
+      ),
     }));
   }
 
@@ -663,16 +801,33 @@ export default function ChapterRenderer({ entry, chapterPath }: Props) {
 
   return (
     <div className="flex flex-col h-full min-h-0">
-      <ReaderControls settings={settings} theme={theme} onFontSize={adjustFontSize} onLineHeight={adjustLineHeight} onTheme={() => {}} />
+      <ReaderControls
+        settings={settings}
+        theme={theme}
+        onFontSize={adjustFontSize}
+        onLineHeight={adjustLineHeight}
+        onTheme={() => {}}
+      />
 
-      <div ref={containerRef} className="relative flex-1 min-h-0 overflow-hidden">
+      <div
+        ref={containerRef}
+        className="relative flex-1 min-h-0 overflow-hidden"
+      >
         {loading && (
-          <div className="absolute inset-0 flex items-center justify-center z-10" style={{ background: theme.bg }}>
-            <p className="text-sm" style={{ color: theme.chromeTextMuted }}>Loading chapter…</p>
+          <div
+            className="absolute inset-0 flex items-center justify-center z-10"
+            style={{ background: theme.bg }}
+          >
+            <p className="text-sm" style={{ color: theme.chromeTextMuted }}>
+              Loading chapter…
+            </p>
           </div>
         )}
         {error && (
-          <div className="absolute inset-0 flex items-center justify-center z-10 px-8" style={{ background: theme.bg }}>
+          <div
+            className="absolute inset-0 flex items-center justify-center z-10 px-8"
+            style={{ background: theme.bg }}
+          >
             <p className="text-red-400 text-sm text-center">{error}</p>
           </div>
         )}
@@ -687,25 +842,27 @@ export default function ChapterRenderer({ entry, chapterPath }: Props) {
         )}
       </div>
 
-      {srcdoc !== null && (() => {
-        const linearSpine = entry.book.spine.filter((c) => c.linear);
-        const chapterIdx = linearSpine.findIndex((c) => c.path === basePath);
-        const pageFrac = totalPages > 1 ? page / totalPages : 0;
-        const bookProgress = linearSpine.length > 0 && chapterIdx >= 0
-          ? Math.round(((chapterIdx + pageFrac) / linearSpine.length) * 100)
-          : 0;
-        return (
-          <PaginationBar
-            page={page}
-            total={totalPages}
-            twoPage={twoPage}
-            theme={theme}
-            bookProgress={bookProgress}
-            onPrev={() => goToPage(pageRef.current - 1)}
-            onNext={() => goToPage(pageRef.current + 1)}
-          />
-        );
-      })()}
+      {srcdoc !== null &&
+        (() => {
+          const linearSpine = entry.book.spine.filter((c) => c.linear);
+          const chapterIdx = linearSpine.findIndex((c) => c.path === basePath);
+          const pageFrac = totalPages > 1 ? page / totalPages : 0;
+          const bookProgress =
+            linearSpine.length > 0 && chapterIdx >= 0
+              ? Math.round(((chapterIdx + pageFrac) / linearSpine.length) * 100)
+              : 0;
+          return (
+            <PaginationBar
+              page={page}
+              total={totalPages}
+              twoPage={twoPage}
+              theme={theme}
+              bookProgress={bookProgress}
+              onPrev={() => goToPage(pageRef.current - 1)}
+              onNext={() => goToPage(pageRef.current + 1)}
+            />
+          );
+        })()}
     </div>
   );
 }
